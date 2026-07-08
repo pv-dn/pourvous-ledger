@@ -46,10 +46,11 @@ select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;borde
 .qty-cell.active-out{border-color:#5b4b8a;background:#f0ebff}
 .list-head{display:grid;grid-template-columns:1fr 58px 58px;gap:5px;padding:0 8px 3px;font-size:9px;font-weight:700;color:#888;text-align:center}
 .list-head span:first-child{text-align:left;padding-left:0}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.actions .btn{flex:1;min-width:120px;padding:12px}
-.numpad-wrap{width:280px;flex-shrink:0;background:#fff;border-left:2px solid #1a1a2e;padding:16px 14px;display:flex;flex-direction:column;justify-content:center;align-self:stretch;overflow:hidden}
-.numpad-target{font-size:13px;color:#666;margin-bottom:12px;text-align:center;line-height:1.5;min-height:40px;display:flex;align-items:center;justify-content:center}
+.numpad-wrap{width:280px;flex-shrink:0;background:#fff;border-left:2px solid #1a1a2e;padding:12px 14px;display:flex;flex-direction:column;justify-content:flex-start;gap:10px;align-self:stretch;overflow:hidden}
+.sidebar-actions{display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+.sidebar-actions .btn{width:100%;padding:12px;font-size:13px}
+.btn-memo{background:#f0ebff;color:#5b4b8a;border:none}
+.numpad-target{font-size:13px;color:#666;text-align:center;line-height:1.5;min-height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .numpad-target strong{color:#1a1a2e}
 .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .numpad-wrap.disabled .nk{opacity:.45}
@@ -566,11 +567,7 @@ function renderInputTab() {
       </div>
       <p class="sync-note">${state.demoMode ? "試用モード：サンプル客先・品目（ログイン省略）" : "品目はプゥルヴー伝票の客先単価表から読み込み"}</p>
     </div>
-    <div class="card" style="padding-bottom:10px">${rows}</div>
-    <div class="actions">
-      <button class="btn btn-primary" id="btn-save">完了して保存</button>
-      <button class="btn btn-ghost" id="btn-memo" style="background:#f0ebff;color:#5b4b8a">伝票入力メモ</button>
-    </div>`;
+    <div class="card" style="padding-bottom:10px">${rows}</div>`;
 }
 
 function renderHistoryTab() {
@@ -642,6 +639,10 @@ function render() {
           ${state.loading ? `<div class="empty">読込中…</div>` : state.tab === 0 ? renderInputTab() : renderHistoryTab()}
         </main>
         <aside class="numpad-wrap${showNumpad ? "" : " hidden"}${state.focus ? "" : " disabled"}" aria-label="テンキー">
+          <div class="sidebar-actions">
+            <button class="btn btn-primary" id="btn-save">完了して保存</button>
+            <button class="btn btn-memo" id="btn-memo">伝票入力メモ</button>
+          </div>
           <div class="numpad-target">${numpadHint}</div>
           <div class="numpad">
             ${["7","8","9","4","5","6","1","2","3"].map(n => `<button type="button" class="nk" data-k="${n}">${n}</button>`).join("")}
@@ -686,9 +687,12 @@ function render() {
     document.querySelectorAll(".qty-cell").forEach(el => {
       el.onclick = () => setFocus(+el.dataset.i, el.dataset.f);
     });
-    document.getElementById("btn-save").onclick = saveLedger;
-    document.getElementById("btn-memo").onclick = showMemoFromForm;
   }
+
+  const saveBtn = document.getElementById("btn-save");
+  const memoBtn = document.getElementById("btn-memo");
+  if (saveBtn) saveBtn.onclick = saveLedger;
+  if (memoBtn) memoBtn.onclick = showMemoFromForm;
 
   if (state.tab === 1) {
     const refreshBtn = document.getElementById("btn-refresh-history");
