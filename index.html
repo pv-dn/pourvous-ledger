@@ -136,6 +136,8 @@ async function endWorkDay() {
   state.demoMode = false;
   state.customer = "";
   state.items = [];
+  state.userShortId = "";
+  state.userDisplayName = "";
   await signOut(auth);
 }
 
@@ -221,6 +223,8 @@ const state = {
   buffer: "",
   detail: null,
   invoiceMemo: null,
+  userShortId: "",
+  userDisplayName: "",
   loading: false
 };
 
@@ -230,7 +234,52 @@ function isActiveSession() {
 
 function sessionLabel() {
   if (state.demoMode) return "試用モード（ログイン省略）";
-  return "本日ログイン済み · " + (auth.currentUser?.email || "");
+  const name = state.userDisplayName || state.userShortId;
+  return name ? `本日ログイン済み · ${name}` : "本日ログイン済み";
+}
+
+async function getUserProfiles() {
+  const snap = await getDocs(collection(db, "userProfiles"));
+  return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+}
+
+async function loadUserProfile(uid) {
+  try {
+    const snap = await getDoc(doc(db, "userProfiles", uid));
+    if (snap.exists()) {
+      const prof = snap.data();
+      state.userShortId = prof.shortId || "";
+      state.userDisplayName = prof.displayName || "";
+    }
+  } catch {}
+}
+
+function setUserProfile(prof) {
+  state.userShortId = prof?.shortId || "";
+  state.userDisplayName = prof?.displayName || "";
+}
+
+async function loginWithPassword(password) {
+  const pass = password.trim();
+  if (!pass) throw new Error("パスワードを入力してください");
+  const profiles = await getUserProfiles();
+  if (!profiles.length) throw new Error("ユーザー情報を取得できません。しばらく待ってから再試行してください。");
+  for (const prof of profiles) {
+    const email = prof.shortId
+      ? prof.shortId.toLowerCase() + "@pv.local"
+      : (prof.email || "");
+    if (!email) continue;
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, pass);
+      setUserProfile(prof);
+      return cred.user;
+    } catch (e) {
+      if (e.code === "auth/too-many-requests") {
+        throw new Error("ログイン試行が多すぎます。しばらく待ってから再試行してください。");
+      }
+    }
+  }
+  throw new Error("パスワードが正しくありません");
 }
 
 function todayInput() {
@@ -387,7 +436,7 @@ function buildLedgerRecord() {
     })),
     createdAt: new Date().toISOString(),
     createdBy: user?.uid || "",
-    createdByEmail: state.demoMode ? "試用モード" : (user?.email || ""),
+    createdByEmail: state.demoMode ? "試用モード" : (state.userDisplayName || state.userShortId || ""),
   };
 }
 
@@ -462,25 +511,29 @@ function renderLogin(notice) {
     <div class="login-wrap">
       <div class="login-card">
         <h1>入出荷台帳</h1>
-        <p>朝いちどログインすれば、その日は再入力不要です。<br>終わったら「業務終了」を押してください。</p>
+        <p>パスワードを入力してください。<br>朝いちどログインすれば、その日は再入力不要です。</p>
         ${notice ? `<p style="font-size:13px;color:#c62828;margin-bottom:12px">${esc(notice)}</p>` : ""}
-        <input type="email" id="login-email" placeholder="メールアドレス" autocomplete="username">
+        <label class="lbl" style="margin-top:8px">パスワード</label>
         <input type="password" id="login-pass" placeholder="パスワード" autocomplete="current-password">
-        <button class="btn btn-primary" style="width:100%;padding:12px" id="login-btn">ログイン</button>
+        <p id="login-error" style="font-size:13px;color:#c62828;min-height:20px;margin-top:8px;text-align:center"></p>
+        <button class="btn btn-primary" style="width:100%;padding:12px;margin-top:4px" id="login-btn">ログイン</button>
         ${IS_LOCAL ? `<button class="btn btn-ghost" style="width:100%;padding:12px;margin-top:10px" id="demo-btn">ログインなしで試す</button>` : ""}
       </div>
     </div>`;
   if (IS_LOCAL) document.getElementById("demo-btn").onclick = () => startDemoMode();
-  document.getElementById("login-btn").onclick = async () => {
-    const email = document.getElementById("login-email").value.trim();
-    const pass = document.getElementById("login-pass").value;
-    if (!email || !pass) { toast("メールとパスワードを入力", "error"); return; }
+  const passInput = document.getElementById("login-pass");
+  const errEl = document.getElementById("login-error");
+  const doLogin = async () => {
+    errEl.textContent = "";
     try {
-      await signInWithEmailAndPassword(auth, email, pass);
-    } catch {
-      toast("ログインに失敗しました", "error");
+      await loginWithPassword(passInput.value);
+      markSessionDay();
+    } catch (e) {
+      errEl.textContent = e.message || "ログインに失敗しました";
     }
   };
+  document.getElementById("login-btn").onclick = doLogin;
+  passInput.onkeydown = e => { if (e.key === "Enter") doLogin(); };
 }
 
 function renderInputTab() {
@@ -690,8 +743,13 @@ onAuthStateChanged(auth, async user => {
     if (saved && saved !== today) {
       await signOut(auth);
       clearSessionDay();
+      state.userShortId = "";
+      state.userDisplayName = "";
       renderLogin("日付が変わりました。朝いちどログインしてください。");
       return;
+    }
+    if (!state.userDisplayName && !state.userShortId) {
+      await loadUserProfile(user.uid);
     }
     markSessionDay();
     state.demoMode = false;
