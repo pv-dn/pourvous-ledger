@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 伝票アプリ（既存）
+    match /pvdata/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 入出荷台帳（1件ずつ保存・同時利用向け）
+    match /ledgerRecords/{recordId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /userProfiles/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /loginLogs/{logId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // 伝票アプリ（既存コレクション）
+    match /pvInvoiceLogs/{logId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="入出荷台帳">
+<link rel="manifest" href="manifest.webmanifest">
+<title>入出荷台帳</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{font-size:18px;height:100%}
+body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;color:#1a1a2e;height:100%;overflow:hidden}
+#root{height:100%}
+.hidden{display:none!important}
+.app{max-width:1100px;width:100%;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden}
+.header{background:#1a1a2e;color:#e8d5b7;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:30}
+.header h1{font-size:17px;font-weight:700}
+.header-sub{font-size:11px;opacity:.75;margin-top:2px}
+.header-actions{display:flex;gap:8px;align-items:center}
+.btn{border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-ghost{background:rgba(255,255,255,.12);color:#e8d5b7}
+.btn-primary{background:#e8d5b7;color:#1a1a2e}
+.btn-primary:disabled{opacity:.45;cursor:not-allowed}
+.tabs{display:flex;background:#fff;border-bottom:1px solid #e0ddd5;flex-shrink:0}
+.tab{flex:1;padding:12px;border:none;background:none;font-size:14px;font-weight:600;color:#888;cursor:pointer;font-family:inherit;border-bottom:3px solid transparent}
+.tab.active{color:#1a1a2e;border-bottom-color:#1a1a2e}
+.workspace{display:flex;flex:1;min-height:0;overflow:hidden}
+.main{flex:1;min-width:0;min-height:0;padding:12px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.card{background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:14px;margin-bottom:12px}
+.lbl{font-size:12px;color:#666;font-weight:600;margin-bottom:6px;display:block}
+select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:15px;font-family:inherit;background:#fff}
+.meta-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.item-list{display:flex;flex-direction:column;gap:3px}
+.item-row{display:grid;grid-template-columns:1fr 58px 58px;gap:5px;align-items:center;background:#fff;border:1px solid #e8e6e0;border-radius:6px;padding:4px 8px}
+.item-row.active{border-color:#1a1a2e;box-shadow:0 0 0 2px rgba(26,26,46,.12)}
+.item-name{font-size:13px;font-weight:600;line-height:1.2;word-break:break-all}
+.item-code{font-size:9px;color:#888;margin-top:0}
+.qty-cell{text-align:center;padding:3px 2px;border:1px solid #ddd;border-radius:5px;font-size:16px;font-weight:700;background:#faf9f7;cursor:pointer;min-height:30px;display:flex;align-items:center;justify-content:center}
+.qty-cell.empty{color:#ccc;font-weight:500;font-size:13px}
+.qty-cell.in-head::before,.qty-cell.out-head::before{display:block;font-size:10px;font-weight:600;margin-bottom:2px}
+.qty-cell.in-col{border-color:#b8dcc8;background:#f6fbf8}
+.qty-cell.out-col{border-color:#d4c4f0;background:#faf7ff}
+.qty-cell.active-in{border-color:#2d6a4f;background:#e8f5ec}
+.qty-cell.active-out{border-color:#5b4b8a;background:#f0ebff}
+.list-head{display:grid;grid-template-columns:1fr 58px 58px;gap:5px;padding:0 8px 3px;font-size:9px;font-weight:700;color:#888;text-align:center}
+.list-head span:first-child{text-align:left;padding-left:0}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.actions .btn{flex:1;min-width:120px;padding:12px}
+.numpad-wrap{width:280px;flex-shrink:0;background:#fff;border-left:2px solid #1a1a2e;padding:16px 14px;display:flex;flex-direction:column;justify-content:center;align-self:stretch;overflow:hidden}
+.numpad-target{font-size:13px;color:#666;margin-bottom:12px;text-align:center;line-height:1.5;min-height:40px;display:flex;align-items:center;justify-content:center}
+.numpad-target strong{color:#1a1a2e}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.numpad-wrap.disabled .nk{opacity:.45}
+.numpad-wrap.disabled .nk:active{background:#f4f3ef}
+.nk{border:none;border-radius:10px;padding:18px 0;font-size:24px;font-weight:700;cursor:pointer;font-family:inherit;background:#f4f3ef;color:#1a1a2e}
+.nk:active{background:#e0ddd5}
+.nk.del{background:#fff3e0;color:#c62828}
+.nk.enter{background:#1a1a2e;color:#e8d5b7;grid-column:span 2}
+@media (max-width:767px){
+  .workspace{flex-direction:column}
+  .main{flex:1;min-height:0}
+  .numpad-wrap{width:100%;flex-shrink:0;border-left:none;border-top:2px solid #1a1a2e;padding:12px;align-self:auto}
+  .nk{padding:14px 0;font-size:20px}
+}
+.history-list{display:flex;flex-direction:column;gap:8px}
+.history-item{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e8e6e0;border-radius:10px;padding:12px 14px;cursor:pointer;text-align:left;font-family:inherit;width:100%}
+.history-item:active{background:#faf9f7}
+.history-icon{font-size:24px;flex-shrink:0}
+.history-body{flex:1;min-width:0}
+.history-title{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.history-meta{font-size:12px;color:#666;margin-top:3px}
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:6px}
+.badge-sent{background:#e8f5ec;color:#2d6a4f}
+.badge-draft{background:#fff3e0;color:#e65100}
+.detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:flex;align-items:flex-end;justify-content:center;padding:16px}
+.detail-panel{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:720px;max-height:85vh;overflow:auto;padding:16px}
+.detail-panel h2{font-size:18px;margin-bottom:4px}
+.detail-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+.detail-table th,.detail-table td{padding:8px 6px;border-bottom:1px solid #eee;text-align:left}
+.detail-table th{font-size:11px;color:#888}
+.detail-table .num{text-align:right;font-weight:600}
+.memo-note{font-size:12px;color:#666;background:#f7f6f2;border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.5}
+.memo-table{width:100%;border-collapse:collapse;font-size:15px}
+.memo-table th,.memo-table td{padding:10px 8px;border-bottom:1px solid #eee}
+.memo-table th{font-size:11px;color:#888;text-align:left}
+.memo-table .qty{text-align:right;font-weight:700;font-size:18px;color:#5b4b8a}
+.memo-actions{display:flex;gap:8px;margin-top:16px}
+.memo-actions .btn{flex:1;padding:12px}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:linear-gradient(160deg,#1a1a2e,#2d3561)}
+.login-card{background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:380px;box-shadow:0 16px 48px rgba(0,0,0,.25)}
+.login-card h1{font-size:20px;margin-bottom:4px;color:#1a1a2e}
+.login-card p{font-size:13px;color:#666;margin-bottom:20px}
+.login-card input{width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:15px;margin-bottom:12px;font-family:inherit}
+.login-card .btn-ghost{background:#f4f3ef;color:#1a1a2e;border:1px solid #ddd}
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#2d6a4f;color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:600;z-index:60;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.toast.error{background:#c62828}
+.empty{text-align:center;padding:40px 16px;color:#888;font-size:14px}
+.sync-note{font-size:11px;color:#888;text-align:center;margin-top:8px}
+</style>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+import { getFirestore, doc, getDoc, collection, addDoc, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+import { initializeAuth, indexedDBLocalPersistence, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBRvXOmLV_iU9ybzJrquJSglUYfEON_CsM",
+  authDomain: "pourvoussystem.firebaseapp.com",
+  projectId: "pourvoussystem",
+  storageBucket: "pourvoussystem.firebasestorage.app",
+  messagingSenderId: "505648740877",
+  appId: "1:505648740877:web:f5b0c3a950866ce74bb344"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = initializeAuth(app, { persistence: indexedDBLocalPersistence });
+
+const SESSION_DAY_KEY = "lg_sessionDay";
+
+function sessionDayKey() {
+  return todayInput();
+}
+
+function markSessionDay() {
+  try { localStorage.setItem(SESSION_DAY_KEY, sessionDayKey()); } catch {}
+}
+
+function clearSessionDay() {
+  try { localStorage.removeItem(SESSION_DAY_KEY); } catch {}
+}
+
+async function endWorkDay() {
+  clearSessionDay();
+  state.demoMode = false;
+  state.customer = "";
+  state.items = [];
+  await signOut(auth);
+}
+
+const IS_LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+
+const DEMO_CUSTOMERS = [
+  { id: "D01", name: "サンプル商事" },
+  { id: "D02", name: "デモレストラン" },
+  { id: "D03", name: "テスト病院" }
+];
+
+const DEMO_PRICES = [
+  { customer: "サンプル商事", code: "U001", name: "作業着（上）" },
+  { customer: "サンプル商事", code: "U002", name: "作業着（下）" },
+  { customer: "サンプル商事", code: "U003", name: "エプロン（短）" },
+  { customer: "サンプル商事", code: "U004", name: "エプロン（長）" },
+  { customer: "サンプル商事", code: "U005", name: "タオル（大）" },
+  { customer: "サンプル商事", code: "U006", name: "タオル（中）" },
+  { customer: "サンプル商事", code: "U007", name: "タオル（小）" },
+  { customer: "サンプル商事", code: "U008", name: "手袋" },
+  { customer: "サンプル商事", code: "U009", name: "帽子" },
+  { customer: "サンプル商事", code: "U010", name: "マスク" },
+  { customer: "サンプル商事", code: "U011", name: "白衣（上）" },
+  { customer: "サンプル商事", code: "U012", name: "白衣（下）" },
+  { customer: "サンプル商事", code: "U013", name: "ベスト" },
+  { customer: "サンプル商事", code: "U014", name: "防寒ジャンパー" },
+  { customer: "サンプル商事", code: "U015", name: "ズボン" },
+  { customer: "サンプル商事", code: "U016", name: "シャツ（半袖）" },
+  { customer: "サンプル商事", code: "U017", name: "シャツ（長袖）" },
+  { customer: "サンプル商事", code: "U018", name: "ポロシャツ" },
+  { customer: "サンプル商事", code: "U019", name: "クリーニングバッグ" },
+  { customer: "サンプル商事", code: "U020", name: "ネーム札" },
+  { customer: "サンプル商事", code: "U021", name: "腕章" },
+  { customer: "サンプル商事", code: "U022", name: "腰巻き" },
+  { customer: "サンプル商事", code: "U023", name: "三角巾" },
+  { customer: "サンプル商事", code: "U024", name: "靴下" },
+  { customer: "サンプル商事", code: "U025", name: "軍手" },
+  { customer: "デモレストラン", code: "R001", name: "コックコート" },
+  { customer: "デモレストラン", code: "R002", name: "前掛け（短）" },
+  { customer: "デモレストラン", code: "R003", name: "前掛け（長）" },
+  { customer: "デモレストラン", code: "R004", name: "ナプキン" },
+  { customer: "デモレストラン", code: "R005", name: "テーブルクロス" },
+  { customer: "デモレストラン", code: "R006", name: "ランチョンマット" },
+  { customer: "デモレストラン", code: "R007", name: "座席カバー" },
+  { customer: "デモレストラン", code: "R008", name: "厨房タオル" },
+  { customer: "デモレストラン", code: "R009", name: "ダスター" },
+  { customer: "デモレストラン", code: "R010", name: "三角巾" },
+  { customer: "デモレストラン", code: "R011", name: "ハンバーガー帽" },
+  { customer: "デモレストラン", code: "R012", name: "ホールエプロン" },
+  { customer: "デモレストラン", code: "R013", name: "バンダナ" },
+  { customer: "デモレストラン", code: "R014", name: "ふきん" },
+  { customer: "デモレストラン", code: "R015", name: "厨房靴" },
+  { customer: "テスト病院", code: "H001", name: "患者着（上）" },
+  { customer: "テスト病院", code: "H002", name: "患者着（下）" },
+  { customer: "テスト病院", code: "H003", name: "看護師白衣" },
+  { customer: "テスト病院", code: "H004", name: "看護師ズボン" },
+  { customer: "テスト病院", code: "H005", name: "スクラブ（上）" },
+  { customer: "テスト病院", code: "H006", name: "スクラブ（下）" },
+  { customer: "テスト病院", code: "H007", name: "ガウン" },
+  { customer: "テスト病院", code: "H008", name: "シーツ（シングル）" },
+  { customer: "テスト病院", code: "H009", name: "シーツ（ダブル）" },
+  { customer: "テスト病院", code: "H010", name: "枕カバー" },
+  { customer: "テスト病院", code: "H011", name: "バスタオル" },
+  { customer: "テスト病院", code: "H012", name: "フェイスタオル" },
+  { customer: "テスト病院", code: "H013", name: "バスマット" },
+  { customer: "テスト病院", code: "H014", name: "カーテン" },
+  { customer: "テスト病院", code: "H015", name: "オペ着" },
+  { customer: "テスト病院", code: "H016", name: "帽子（手術用）" },
+  { customer: "テスト病院", code: "H017", name: "マスク（使い捨て）" },
+  { customer: "テスト病院", code: "H018", name: "足袋" }
+];
+
+const state = {
+  tab: 0,
+  demoMode: false,
+  customers: [],
+  prices: [],
+  ledgers: [],
+  customer: "",
+  deliveryDate: "",
+  items: [],
+  focus: null,
+  buffer: "",
+  detail: null,
+  invoiceMemo: null,
+  loading: false
+};
+
+function isActiveSession() {
+  return state.demoMode || auth.currentUser;
+}
+
+function sessionLabel() {
+  if (state.demoMode) return "試用モード（ログイン省略）";
+  return "本日ログイン済み · " + (auth.currentUser?.email || "");
+}
+
+function todayInput() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function fmtDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso.includes("T") ? iso : iso + "T12:00:00");
+  if (isNaN(d)) return iso;
+  return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function fmtTime(iso) {
+  const d = new Date(iso);
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function toast(msg, type = "success") {
+  const el = document.createElement("div");
+  el.className = "toast" + (type === "error" ? " error" : "");
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+async function fsLoad(key) {
+  const snap = await getDoc(doc(db, "pvdata", key));
+  if (!snap.exists()) return null;
+  try { return JSON.parse(snap.data().value); } catch { return null; }
+}
+
+async function loadLedgersFromCloud() {
+  const q = query(collection(db, "ledgerRecords"), orderBy("createdAt", "desc"), limit(500));
+  const snap = await getDocs(q);
+  state.ledgers = snap.docs.map(d => d.data());
+  try { localStorage.setItem("lg_ledgers", JSON.stringify(state.ledgers)); } catch {}
+}
+
+async function loadMasters() {
+  state.loading = true;
+  render();
+  if (state.demoMode) {
+    state.customers = DEMO_CUSTOMERS;
+    state.prices = DEMO_PRICES;
+    try {
+      const cached = localStorage.getItem("lg_ledgers_demo");
+      state.ledgers = cached ? JSON.parse(cached) : [];
+    } catch { state.ledgers = []; }
+    state.loading = false;
+    render();
+    return;
+  }
+  try {
+    const [customers, prices] = await Promise.all([
+      fsLoad("customers"),
+      fsLoad("prices")
+    ]);
+    state.customers = Array.isArray(customers) ? customers : [];
+    state.prices = Array.isArray(prices) ? prices : [];
+    await loadLedgersFromCloud();
+  } catch (e) {
+    console.error(e);
+    toast("マスタの読込に失敗しました", "error");
+    try {
+      const cached = localStorage.getItem("lg_ledgers");
+      if (cached) state.ledgers = JSON.parse(cached);
+    } catch {}
+  }
+  state.loading = false;
+  render();
+}
+
+function loadCustomerItems(name) {
+  state.customer = name;
+  const rows = state.prices.filter(p => p.customer === name);
+  state.items = rows.map(p => ({
+    code: p.code || "",
+    name: p.name || p.code || "（名称なし）",
+    inQty: "",
+    outQty: ""
+  }));
+  state.focus = null;
+  state.buffer = "";
+}
+
+function selectCustomer(name) {
+  if (!name) {
+    state.customer = "";
+    state.items = [];
+    state.focus = null;
+    state.buffer = "";
+    render();
+    return;
+  }
+  loadCustomerItems(name);
+  render();
+}
+
+function setFocus(index, field) {
+  state.focus = { index, field };
+  const item = state.items[index];
+  state.buffer = String(field === "in" ? item.inQty : item.outQty || "");
+  render();
+}
+
+function applyBuffer() {
+  if (!state.focus) return;
+  const { index, field } = state.focus;
+  const val = state.buffer === "" ? "" : String(parseInt(state.buffer, 10) || 0);
+  if (field === "in") state.items[index].inQty = val;
+  else state.items[index].outQty = val;
+}
+
+function numpadPress(key) {
+  if (!state.focus) {
+    if (key !== "enter") toast("入または出をタップしてください", "error");
+    return;
+  }
+  if (key === "del") {
+    state.buffer = state.buffer.slice(0, -1);
+  } else if (key === "enter") {
+    applyBuffer();
+    const { index, field } = state.focus;
+    if (field === "in") {
+      state.focus = { index, field: "out" };
+      state.buffer = String(state.items[index].outQty || "");
+    } else if (index + 1 < state.items.length) {
+      state.focus = { index: index + 1, field: "in" };
+      state.buffer = String(state.items[index + 1].inQty || "");
+    } else {
+      state.focus = null;
+      state.buffer = "";
+    }
+  } else {
+    if (state.buffer.length >= 4) return;
+    state.buffer = (state.buffer === "0" ? "" : state.buffer) + key;
+  }
+  render();
+}
+
+function buildLedgerRecord() {
+  const user = auth.currentUser;
+  return {
+    id: Date.now(),
+    customer: state.customer,
+    deliveryDate: state.deliveryDate || todayInput(),
+    items: state.items.map(it => ({
+      code: it.code,
+      name: it.name,
+      inQty: parseInt(it.inQty, 10) || 0,
+      outQty: parseInt(it.outQty, 10) || 0
+    })),
+    createdAt: new Date().toISOString(),
+    createdBy: user?.uid || "",
+    createdByEmail: state.demoMode ? "試用モード" : (user?.email || ""),
+  };
+}
+
+function hasAnyQty(record) {
+  return record.items.some(it => it.inQty > 0 || it.outQty > 0);
+}
+
+async function saveLedger() {
+  if (!state.customer) { toast("客先を選択してください", "error"); return; }
+  const record = buildLedgerRecord();
+  if (!hasAnyQty(record)) { toast("数量を入力してください", "error"); return; }
+  state.ledgers.unshift(record);
+  try {
+    if (state.demoMode) {
+      localStorage.setItem("lg_ledgers_demo", JSON.stringify(state.ledgers));
+    } else {
+      await addDoc(collection(db, "ledgerRecords"), record);
+      localStorage.setItem("lg_ledgers", JSON.stringify(state.ledgers));
+    }
+    toast(state.demoMode ? "台帳を保存しました（試用・この端末のみ）" : "台帳を保存しました");
+    state.items = state.items.map(it => ({ ...it, inQty: "", outQty: "" }));
+    state.focus = null;
+    state.buffer = "";
+    render();
+    return record;
+  } catch (e) {
+    console.error(e);
+    state.ledgers = state.ledgers.filter(l => l.id !== record.id);
+    toast("保存に失敗しました", "error");
+    return null;
+  }
+}
+
+function showInvoiceMemo(record) {
+  const outItems = (record.items || []).filter(it => it.outQty > 0);
+  if (outItems.length === 0) {
+    toast("「出」の数量がありません", "error");
+    return;
+  }
+  state.invoiceMemo = record;
+  render();
+}
+
+function showMemoFromForm() {
+  if (!state.customer) { toast("客先を選択してください", "error"); return; }
+  const record = buildLedgerRecord();
+  if (!hasAnyQty(record)) { toast("数量を入力してください", "error"); return; }
+  showInvoiceMemo(record);
+}
+
+function renderInvoiceMemo(ledger) {
+  const outItems = ledger.items.filter(it => it.outQty > 0);
+  const rows = outItems.map(it =>
+    `<tr><td>${esc(it.name)}${it.code ? `<div style="font-size:11px;color:#888">${esc(it.code)}</div>` : ""}</td><td class="qty">${it.outQty}</td></tr>`
+  ).join("");
+  return `
+    <div class="detail-overlay" id="memo-overlay">
+      <div class="detail-panel">
+        <h2>伝票入力メモ</h2>
+        <p style="font-size:13px;color:#666;margin-bottom:8px">${esc(ledger.customer)} · 納品日 ${fmtDate(ledger.deliveryDate)}</p>
+        <div class="memo-note">伝票アプリは今までどおり別途開いて入力してください。この画面の「出」の数量を見ながら、伝票発行画面へ転記します。</div>
+        <table class="memo-table"><thead><tr><th>品名</th><th style="text-align:right">出</th></tr></thead><tbody>${rows}</tbody></table>
+        <div class="memo-actions">
+          <button class="btn btn-ghost" id="memo-close" style="background:#f4f3ef;color:#1a1a2e">閉じる</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderLogin(notice) {
+  document.getElementById("root").innerHTML = `
+    <div class="login-wrap">
+      <div class="login-card">
+        <h1>入出荷台帳</h1>
+        <p>朝いちどログインすれば、その日は再入力不要です。<br>終わったら「業務終了」を押してください。</p>
+        ${notice ? `<p style="font-size:13px;color:#c62828;margin-bottom:12px">${esc(notice)}</p>` : ""}
+        <input type="email" id="login-email" placeholder="メールアドレス" autocomplete="username">
+        <input type="password" id="login-pass" placeholder="パスワード" autocomplete="current-password">
+        <button class="btn btn-primary" style="width:100%;padding:12px" id="login-btn">ログイン</button>
+        ${IS_LOCAL ? `<button class="btn btn-ghost" style="width:100%;padding:12px;margin-top:10px" id="demo-btn">ログインなしで試す</button>` : ""}
+      </div>
+    </div>`;
+  if (IS_LOCAL) document.getElementById("demo-btn").onclick = () => startDemoMode();
+  document.getElementById("login-btn").onclick = async () => {
+    const email = document.getElementById("login-email").value.trim();
+    const pass = document.getElementById("login-pass").value;
+    if (!email || !pass) { toast("メールとパスワードを入力", "error"); return; }
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch {
+      toast("ログインに失敗しました", "error");
+    }
+  };
+}
+
+function renderInputTab() {
+  const custOpts = state.customers
+    .map(c => `<option value="${esc(c.name)}"${state.customer === c.name ? " selected" : ""}>${esc(c.name)}</option>`)
+    .join("");
+
+  const rows = state.items.length === 0
+    ? `<div class="empty">${state.customer ? "品目がありません" : "客先を選択してください"}</div>`
+    : `<div class="list-head"><span>品名</span><span>入</span><span>出</span></div>
+       <div class="item-list">${state.items.map((it, i) => {
+         const inActive = state.focus?.index === i && state.focus.field === "in";
+         const outActive = state.focus?.index === i && state.focus.field === "out";
+         const inDisp = inActive ? (state.buffer || "0") : (it.inQty !== "" ? it.inQty : "—");
+         const outDisp = outActive ? (state.buffer || "0") : (it.outQty !== "" ? it.outQty : "—");
+         return `<div class="item-row${inActive || outActive ? " active" : ""}">
+           <div><div class="item-name">${esc(it.name)}</div>${it.code ? `<div class="item-code">${esc(it.code)}</div>` : ""}</div>
+           <div class="qty-cell in-col${inActive ? " active-in" : ""}${it.inQty === "" && !inActive ? " empty" : ""}" data-i="${i}" data-f="in">${esc(String(inDisp))}</div>
+           <div class="qty-cell out-col${outActive ? " active-out" : ""}${it.outQty === "" && !outActive ? " empty" : ""}" data-i="${i}" data-f="out">${esc(String(outDisp))}</div>
+         </div>`;
+       }).join("")}</div>`;
+
+  return `
+    <div class="card">
+      <div class="meta-row">
+        <div><label class="lbl">客先</label>
+          <select id="cust-select"><option value="">-- 選択 --</option>${custOpts}</select></div>
+        <div><label class="lbl">納品日</label>
+          <input type="date" id="delivery-date" value="${state.deliveryDate || todayInput()}"></div>
+      </div>
+      <p class="sync-note">${state.demoMode ? "試用モード：サンプル客先・品目（ログイン省略）" : "品目はプゥルヴー伝票の客先単価表から読み込み"}</p>
+    </div>
+    <div class="card" style="padding-bottom:10px">${rows}</div>
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-save">完了して保存</button>
+      <button class="btn btn-ghost" id="btn-memo" style="background:#f0ebff;color:#5b4b8a">伝票入力メモ</button>
+    </div>`;
+}
+
+function renderHistoryTab() {
+  if (state.ledgers.length === 0) {
+    return `<div class="empty">保存された台帳はまだありません</div>`;
+  }
+  return `<div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+    <button class="btn btn-ghost" id="btn-refresh-history" style="background:#fff;border:1px solid #ddd;color:#333;padding:6px 12px;font-size:12px">↻ 更新</button>
+  </div><div class="history-list">${state.ledgers.map(l => {
+    const outSum = l.items.reduce((s, it) => s + (it.outQty || 0), 0);
+    const inSum = l.items.reduce((s, it) => s + (it.inQty || 0), 0);
+    return `<button type="button" class="history-item" data-id="${l.id}">
+      <span class="history-icon">📄</span>
+      <span class="history-body">
+        <div class="history-title">${esc(l.customer)}</div>
+        <div class="history-meta">${fmtDate(l.deliveryDate)} · 入${inSum} / 出${outSum} · ${fmtDate(l.createdAt)} ${fmtTime(l.createdAt)}</div>
+      </span>
+    </button>`;
+  }).join("")}</div>`;
+}
+
+function renderDetail(ledger) {
+  const rows = ledger.items
+    .filter(it => it.inQty > 0 || it.outQty > 0)
+    .map(it => `<tr><td>${esc(it.name)}</td><td class="num">${it.inQty || "—"}</td><td class="num">${it.outQty || "—"}</td></tr>`)
+    .join("");
+  return `
+    <div class="detail-overlay" id="detail-overlay">
+      <div class="detail-panel">
+        <h2>${esc(ledger.customer)}</h2>
+        <p style="font-size:13px;color:#666">${fmtDate(ledger.deliveryDate)} · 保存 ${fmtDate(ledger.createdAt)} ${fmtTime(ledger.createdAt)}</p>
+        <table class="detail-table"><thead><tr><th>品名</th><th>入</th><th>出</th></tr></thead><tbody>${rows}</tbody></table>
+        <div class="memo-actions">
+          <button class="btn btn-ghost" id="detail-memo" style="background:#f0ebff;color:#5b4b8a">伝票入力メモ</button>
+          <button class="btn btn-primary" id="detail-close">閉じる</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+}
+
+function render() {
+  if (!isActiveSession()) return;
+  const showNumpad = state.tab === 0;
+  const focusLabel = state.focus
+    ? `${state.items[state.focus.index]?.name || ""} の「${state.focus.field === "in" ? "入" : "出"}」`
+    : "";
+  const numpadHint = focusLabel
+    ? `入力中：<strong>${esc(focusLabel)}</strong>`
+    : "入または出をタップしてください";
+
+  document.getElementById("root").innerHTML = `
+    <div class="app">
+      <header class="header">
+        <div><h1>入出荷台帳</h1><div class="header-sub">${esc(sessionLabel())}</div></div>
+        <div class="header-actions">
+          <button class="btn btn-ghost" id="btn-logout">${state.demoMode ? "終了" : "業務終了"}</button>
+        </div>
+      </header>
+      <div class="tabs">
+        <button class="tab${state.tab === 0 ? " active" : ""}" data-tab="0">入力</button>
+        <button class="tab${state.tab === 1 ? " active" : ""}" data-tab="1">履歴 ${state.ledgers.length ? `(${state.ledgers.length})` : ""}</button>
+      </div>
+      <div class="workspace">
+        <main class="main">
+          ${state.loading ? `<div class="empty">読込中…</div>` : state.tab === 0 ? renderInputTab() : renderHistoryTab()}
+        </main>
+        <aside class="numpad-wrap${showNumpad ? "" : " hidden"}${state.focus ? "" : " disabled"}" aria-label="テンキー">
+          <div class="numpad-target">${numpadHint}</div>
+          <div class="numpad">
+            ${["7","8","9","4","5","6","1","2","3"].map(n => `<button type="button" class="nk" data-k="${n}">${n}</button>`).join("")}
+            <button type="button" class="nk del" data-k="del">DEL</button>
+            <button type="button" class="nk" data-k="0">0</button>
+            <button type="button" class="nk enter" data-k="enter">ENTER</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+    ${state.detail ? renderDetail(state.detail) : ""}
+    ${state.invoiceMemo ? renderInvoiceMemo(state.invoiceMemo) : ""}`;
+
+  document.querySelectorAll(".tab").forEach(btn => {
+    btn.onclick = async () => {
+      state.tab = +btn.dataset.tab;
+      state.focus = null;
+      if (state.tab === 1 && !state.demoMode && !state.loading) {
+        try { await loadLedgersFromCloud(); } catch {}
+      }
+      render();
+    };
+  });
+  document.getElementById("btn-logout").onclick = async () => {
+    if (state.demoMode) {
+      state.demoMode = false;
+      state.customer = "";
+      state.items = [];
+      renderLogin();
+    } else {
+      await endWorkDay();
+    }
+  };
+
+  if (state.tab === 0 && !state.loading) {
+    const sel = document.getElementById("cust-select");
+    if (sel) sel.onchange = e => selectCustomer(e.target.value);
+    const dt = document.getElementById("delivery-date");
+    if (dt) dt.onchange = e => { state.deliveryDate = e.target.value; };
+    if (!state.deliveryDate) state.deliveryDate = dt?.value || todayInput();
+
+    document.querySelectorAll(".qty-cell").forEach(el => {
+      el.onclick = () => setFocus(+el.dataset.i, el.dataset.f);
+    });
+    document.getElementById("btn-save").onclick = saveLedger;
+    document.getElementById("btn-memo").onclick = showMemoFromForm;
+  }
+
+  if (state.tab === 1) {
+    const refreshBtn = document.getElementById("btn-refresh-history");
+    if (refreshBtn) refreshBtn.onclick = async () => {
+      if (state.demoMode) { render(); return; }
+      try {
+        await loadLedgersFromCloud();
+        toast("履歴を更新しました");
+      } catch { toast("更新に失敗しました", "error"); }
+      render();
+    };
+    document.querySelectorAll(".history-item").forEach(el => {
+      el.onclick = () => {
+        const id = +el.dataset.id;
+        state.detail = state.ledgers.find(l => l.id === id) || null;
+        render();
+      };
+    });
+  }
+
+  document.querySelectorAll(".nk").forEach(btn => {
+    btn.onclick = () => numpadPress(btn.dataset.k);
+  });
+
+  const closeBtn = document.getElementById("detail-close");
+  if (closeBtn) closeBtn.onclick = () => { state.detail = null; render(); };
+  const detailMemoBtn = document.getElementById("detail-memo");
+  if (detailMemoBtn) detailMemoBtn.onclick = () => showInvoiceMemo(state.detail);
+  const overlay = document.getElementById("detail-overlay");
+  if (overlay) overlay.onclick = e => { if (e.target === overlay) { state.detail = null; render(); } };
+
+  const memoClose = document.getElementById("memo-close");
+  if (memoClose) memoClose.onclick = () => { state.invoiceMemo = null; render(); };
+  const memoOverlay = document.getElementById("memo-overlay");
+  if (memoOverlay) memoOverlay.onclick = e => { if (e.target === memoOverlay) { state.invoiceMemo = null; render(); } };
+}
+
+function startDemoMode() {
+  state.demoMode = true;
+  window.bootApp();
+}
+
+window.bootApp = async function() {
+  if (!state.deliveryDate) state.deliveryDate = todayInput();
+  await loadMasters();
+};
+
+onAuthStateChanged(auth, async user => {
+  if (user) {
+    const saved = localStorage.getItem(SESSION_DAY_KEY);
+    const today = sessionDayKey();
+    if (saved && saved !== today) {
+      await signOut(auth);
+      clearSessionDay();
+      renderLogin("日付が変わりました。朝いちどログインしてください。");
+      return;
+    }
+    markSessionDay();
+    state.demoMode = false;
+    window.bootApp();
+  } else if (IS_LOCAL) {
+    startDemoMode();
+  } else {
+    renderLogin();
+  }
+});
+</script>
+</head>
+<body>
+<div id="root"></div>
+</body>
+</html>
