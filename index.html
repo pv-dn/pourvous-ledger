@@ -120,7 +120,7 @@ select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;borde
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-import { getFirestore, doc, getDoc, collection, addDoc, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, collection, addDoc, query, orderBy, limit, getDocs, where, deleteDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 import { initializeAuth, indexedDBLocalPersistence, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -137,6 +137,7 @@ const db = getFirestore(app);
 const auth = initializeAuth(app, { persistence: indexedDBLocalPersistence });
 
 const SESSION_DAY_KEY = "lg_sessionDay";
+const HISTORY_MONTHS = 2;
 
 function sessionDayKey() {
   return todayInput();
@@ -350,6 +351,37 @@ function sortedLedgers() {
   });
 }
 
+function historyCutoffDateStr() {
+  const d = new Date();
+  d.setMonth(d.getMonth() - HISTORY_MONTHS);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function ledgerRetentionDate(record) {
+  if (record.deliveryDate) return record.deliveryDate;
+  if (record.createdAt) return record.createdAt.slice(0, 10);
+  return "";
+}
+
+function applyLedgerRetention(ledgers) {
+  const cutoff = historyCutoffDateStr();
+  return ledgers.filter(l => ledgerRetentionDate(l) >= cutoff);
+}
+
+function cacheLedgers() {
+  const key = state.demoMode ? "lg_ledgers_demo" : "lg_ledgers";
+  try { localStorage.setItem(key, JSON.stringify(state.ledgers)); } catch {}
+}
+
+async function pruneOldLedgersFromCloud() {
+  if (state.demoMode) return;
+  const cutoff = historyCutoffDateStr();
+  const q = query(collection(db, "ledgerRecords"), where("deliveryDate", "<", cutoff));
+  const snap = await getDocs(q);
+  if (snap.empty) return;
+  await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+}
+
 function toast(msg, type = "success") {
   const el = document.createElement("div");
   el.className = "toast" + (type === "error" ? " error" : "");
@@ -365,10 +397,24 @@ async function fsLoad(key) {
 }
 
 async function loadLedgersFromCloud() {
-  const q = query(collection(db, "ledgerRecords"), orderBy("createdAt", "desc"), limit(500));
-  const snap = await getDocs(q);
-  state.ledgers = snap.docs.map(d => d.data());
-  try { localStorage.setItem("lg_ledgers", JSON.stringify(state.ledgers)); } catch {}
+  const cutoff = historyCutoffDateStr();
+  try {
+    const q = query(
+      collection(db, "ledgerRecords"),
+      where("deliveryDate", ">=", cutoff),
+      orderBy("deliveryDate", "desc"),
+      limit(500)
+    );
+    const snap = await getDocs(q);
+    state.ledgers = snap.docs.map(d => d.data());
+  } catch (e) {
+    console.warn(e);
+    const q = query(collection(db, "ledgerRecords"), orderBy("createdAt", "desc"), limit(500));
+    const snap = await getDocs(q);
+    state.ledgers = applyLedgerRetention(snap.docs.map(d => d.data()));
+  }
+  cacheLedgers();
+  pruneOldLedgersFromCloud().catch(() => {});
 }
 
 async function loadMasters() {
@@ -379,7 +425,7 @@ async function loadMasters() {
     state.prices = DEMO_PRICES;
     try {
       const cached = localStorage.getItem("lg_ledgers_demo");
-      state.ledgers = cached ? JSON.parse(cached) : [];
+      state.ledgers = applyLedgerRetention(cached ? JSON.parse(cached) : []);
     } catch { state.ledgers = []; }
     state.loading = false;
     render();
@@ -398,7 +444,7 @@ async function loadMasters() {
     toast("マスタの読込に失敗しました", "error");
     try {
       const cached = localStorage.getItem("lg_ledgers");
-      if (cached) state.ledgers = JSON.parse(cached);
+      if (cached) state.ledgers = applyLedgerRetention(JSON.parse(cached));
     } catch {}
   }
   state.loading = false;
@@ -499,13 +545,14 @@ async function saveLedger() {
   if (!state.customer) { toast("客先を選択してください", "error"); return; }
   const record = buildLedgerRecord();
   if (!hasAnyQty(record)) { toast("数量を入力してください", "error"); return; }
-  state.ledgers.unshift(record);
+  state.ledgers = applyLedgerRetention([record, ...state.ledgers]);
   try {
     if (state.demoMode) {
-      localStorage.setItem("lg_ledgers_demo", JSON.stringify(state.ledgers));
+      cacheLedgers();
     } else {
       await addDoc(collection(db, "ledgerRecords"), record);
-      localStorage.setItem("lg_ledgers", JSON.stringify(state.ledgers));
+      await pruneOldLedgersFromCloud();
+      cacheLedgers();
     }
     toast(state.demoMode ? "台帳を保存しました（試用・この端末のみ）" : "台帳を保存しました");
     state.items = state.items.map(it => ({ ...it, inQty: "", outQty: "" }));
@@ -632,7 +679,7 @@ function renderHistoryTab() {
     return `<div class="empty">保存された台帳はまだありません</div>`;
   }
   return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
-    <p class="history-note" style="margin:0">納品日の新しい順</p>
+    <p class="history-note" style="margin:0">納品日の新しい順 · 直近${HISTORY_MONTHS}か月</p>
     <button class="btn btn-ghost" id="btn-refresh-history" style="background:#fff;border:1px solid #ddd;color:#333;padding:6px 12px;font-size:12px;flex-shrink:0">↻ 更新</button>
   </div>
   <table class="history-table">
