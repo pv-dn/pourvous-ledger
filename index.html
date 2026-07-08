@@ -117,10 +117,30 @@ select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;borde
 .toast.error{background:#c62828}
 .empty{text-align:center;padding:40px 16px;color:#888;font-size:14px}
 .sync-note{font-size:11px;color:#888;text-align:center;margin-top:8px}
+.master-subtabs{display:flex;gap:8px;margin-bottom:12px}
+.master-subtab{flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:#666}
+.master-subtab.active{background:#1a1a2e;color:#e8d5b7;border-color:#1a1a2e}
+.master-toolbar{display:flex;gap:8px;margin-bottom:10px;align-items:center}
+.master-toolbar select{flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;background:#fff}
+.master-list{display:flex;flex-direction:column;gap:6px}
+.master-row{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e8e6e0;border-radius:8px;padding:10px 12px}
+.master-row-body{flex:1;min-width:0}
+.master-row-title{font-size:15px;font-weight:700;word-break:break-all}
+.master-row-meta{font-size:11px;color:#888;margin-top:2px}
+.master-row-actions{display:flex;gap:6px;flex-shrink:0}
+.master-btn{border:none;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.master-btn-edit{background:#f4f3ef;color:#1a1a2e}
+.master-btn-del{background:#fff3e0;color:#c62828}
+.master-add{width:100%;padding:11px;border:1px dashed #bbb;border-radius:8px;background:#faf9f7;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:#1a1a2e}
+.master-form-panel{background:#fff;border-radius:16px;width:100%;max-width:480px;padding:20px}
+.master-form-panel h3{font-size:17px;margin-bottom:14px}
+.master-form-panel input{width:100%;padding:11px;border:1px solid #ddd;border-radius:8px;font-size:15px;font-family:inherit;margin-bottom:10px}
+.master-form-actions{display:flex;gap:8px;margin-top:6px}
+.master-form-actions .btn{flex:1;padding:12px}
 </style>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-import { getFirestore, doc, getDoc, collection, addDoc, query, orderBy, limit, getDocs, where, deleteDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, getDocs, where, deleteDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 import { initializeAuth, indexedDBLocalPersistence, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -138,6 +158,10 @@ const auth = initializeAuth(app, { persistence: indexedDBLocalPersistence });
 
 const SESSION_DAY_KEY = "lg_sessionDay";
 const HISTORY_MONTHS = 2;
+const MASTER_CUST_KEY = "lg_master_customers";
+const MASTER_ITEMS_KEY = "lg_master_items";
+const MASTER_CUST_KEY_DEMO = "lg_master_customers_demo";
+const MASTER_ITEMS_KEY_DEMO = "lg_master_items_demo";
 
 function sessionDayKey() {
   return todayInput();
@@ -269,7 +293,10 @@ const state = {
   userShortId: "",
   userDisplayName: "",
   loading: false,
-  itemZoom: loadItemZoom()
+  itemZoom: loadItemZoom(),
+  masterSection: "customers",
+  masterCustomer: "",
+  masterForm: null
 };
 
 function isActiveSession() {
@@ -417,12 +444,215 @@ async function loadLedgersFromCloud() {
   pruneOldLedgersFromCloud().catch(() => {});
 }
 
+async function fsLoadLedger(key) {
+  const snap = await getDoc(doc(db, "ledgerMaster", key));
+  if (!snap.exists()) return null;
+  try { return JSON.parse(snap.data().value); } catch { return null; }
+}
+
+async function fsSaveLedger(key, data) {
+  await setDoc(doc(db, "ledgerMaster", key), {
+    value: JSON.stringify(data),
+    updatedAt: new Date().toISOString()
+  });
+}
+
+function cacheLedgerMaster() {
+  const custKey = state.demoMode ? MASTER_CUST_KEY_DEMO : MASTER_CUST_KEY;
+  const itemsKey = state.demoMode ? MASTER_ITEMS_KEY_DEMO : MASTER_ITEMS_KEY;
+  try {
+    localStorage.setItem(custKey, JSON.stringify(state.customers));
+    localStorage.setItem(itemsKey, JSON.stringify(state.prices));
+  } catch {}
+}
+
+function loadLedgerMasterFromCache() {
+  const custKey = state.demoMode ? MASTER_CUST_KEY_DEMO : MASTER_CUST_KEY;
+  const itemsKey = state.demoMode ? MASTER_ITEMS_KEY_DEMO : MASTER_ITEMS_KEY;
+  try {
+    const cust = localStorage.getItem(custKey);
+    const items = localStorage.getItem(itemsKey);
+    if (cust && items) {
+      state.customers = JSON.parse(cust);
+      state.prices = JSON.parse(items);
+      return true;
+    }
+  } catch {}
+  return false;
+}
+
+function normalizeMasterItems(rows) {
+  return (Array.isArray(rows) ? rows : []).map(p => ({
+    customer: p.customer || "",
+    code: p.code || "",
+    name: p.name || p.code || "（名称なし）"
+  })).filter(p => p.customer && p.name);
+}
+
+async function importInvoiceMasterIfEmpty() {
+  const [pvCust, pvPrices] = await Promise.all([fsLoad("customers"), fsLoad("prices")]);
+  let imported = false;
+  if (Array.isArray(pvCust) && pvCust.length) {
+    state.customers = pvCust.map(c => ({ id: c.id || "", name: c.name || "" })).filter(c => c.name);
+    imported = true;
+  }
+  if (Array.isArray(pvPrices) && pvPrices.length) {
+    state.prices = normalizeMasterItems(pvPrices);
+    imported = true;
+  }
+  if (imported) await persistLedgerMaster();
+  return imported;
+}
+
+async function loadLedgerMaster() {
+  if (state.demoMode) {
+    if (!loadLedgerMasterFromCache()) {
+      state.customers = DEMO_CUSTOMERS.map(c => ({ ...c }));
+      state.prices = DEMO_PRICES.map(p => ({ ...p }));
+    }
+    return;
+  }
+  let customers = await fsLoadLedger("customers");
+  let items = await fsLoadLedger("items");
+  const hasMaster = (Array.isArray(customers) && customers.length) || (Array.isArray(items) && items.length);
+  if (!hasMaster) {
+    if (loadLedgerMasterFromCache()) return;
+    await importInvoiceMasterIfEmpty();
+    return;
+  }
+  state.customers = Array.isArray(customers) ? customers : [];
+  state.prices = normalizeMasterItems(items);
+  cacheLedgerMaster();
+}
+
+async function persistLedgerMaster() {
+  state.customers = state.customers.map(c => ({ id: c.id || "", name: (c.name || "").trim() })).filter(c => c.name);
+  state.prices = normalizeMasterItems(state.prices);
+  cacheLedgerMaster();
+  if (state.demoMode) return;
+  await Promise.all([
+    fsSaveLedger("customers", state.customers),
+    fsSaveLedger("items", state.prices)
+  ]);
+}
+
+function nextCustomerId() {
+  const ids = state.customers.map(c => parseInt(c.id, 10) || 0);
+  return String((ids.length ? Math.max(...ids) : 0) + 1).padStart(3, "0");
+}
+
+function customerItemRows(customer) {
+  return state.prices.filter(p => p.customer === customer);
+}
+
+function openMasterCustomerForm(mode, name = "") {
+  state.masterForm = { kind: "customer", mode, name, oldName: mode === "edit" ? name : "" };
+  render();
+}
+
+function openMasterItemForm(mode, customer, index = -1) {
+  const rows = customerItemRows(customer);
+  const row = mode === "edit" ? rows[index] : null;
+  state.masterForm = {
+    kind: "item",
+    mode,
+    customer,
+    index,
+    name: row?.name || "",
+    code: row?.code || ""
+  };
+  render();
+}
+
+async function submitMasterForm() {
+  const f = state.masterForm;
+  if (!f) return;
+  const name = (document.getElementById("master-form-name")?.value || "").trim();
+  const code = (document.getElementById("master-form-code")?.value || "").trim();
+  try {
+    if (f.kind === "customer") {
+      if (!name) { toast("客先名を入力してください", "error"); return; }
+      if (f.mode === "add") {
+        if (state.customers.some(c => c.name === name)) { toast("同じ客先があります", "error"); return; }
+        state.customers.push({ id: nextCustomerId(), name });
+        if (!state.masterCustomer) state.masterCustomer = name;
+      } else {
+        if (name !== f.oldName && state.customers.some(c => c.name === name)) { toast("同じ客先があります", "error"); return; }
+        state.customers = state.customers.map(c => c.name === f.oldName ? { ...c, name } : c);
+        state.prices = state.prices.map(p => p.customer === f.oldName ? { ...p, customer: name } : p);
+        if (state.customer === f.oldName) {
+          state.customer = name;
+          loadCustomerItems(name);
+        }
+        if (state.masterCustomer === f.oldName) state.masterCustomer = name;
+      }
+    } else {
+      const customer = f.customer || state.masterCustomer;
+      if (!customer) { toast("客先を選択してください", "error"); return; }
+      if (!name) { toast("品名を入力してください", "error"); return; }
+      if (f.mode === "add") {
+        state.prices.push({ customer, code, name });
+      } else {
+        const rows = customerItemRows(customer);
+        const target = rows[f.index];
+        if (!target) { toast("品目が見つかりません", "error"); return; }
+        state.prices = state.prices.map(p => p === target ? { customer, code, name } : p);
+        if (state.customer === customer) loadCustomerItems(customer);
+      }
+    }
+    await persistLedgerMaster();
+    state.masterForm = null;
+    toast("保存しました");
+    render();
+  } catch (e) {
+    console.error(e);
+    toast("保存に失敗しました", "error");
+  }
+}
+
+async function deleteMasterCustomer(name) {
+  if (!confirm(`「${name}」を削除しますか？\nこの客先の品目もすべて削除されます。`)) return;
+  try {
+    state.customers = state.customers.filter(c => c.name !== name);
+    state.prices = state.prices.filter(p => p.customer !== name);
+    if (state.customer === name) {
+      state.customer = "";
+      state.items = [];
+      state.focus = null;
+      state.buffer = "";
+    }
+    if (state.masterCustomer === name) state.masterCustomer = state.customers[0]?.name || "";
+    await persistLedgerMaster();
+    toast("削除しました");
+    render();
+  } catch (e) {
+    console.error(e);
+    toast("削除に失敗しました", "error");
+  }
+}
+
+async function deleteMasterItem(customer, index) {
+  const rows = customerItemRows(customer);
+  const target = rows[index];
+  if (!target) return;
+  if (!confirm(`「${target.name}」を削除しますか？`)) return;
+  try {
+    state.prices = state.prices.filter(p => p !== target);
+    if (state.customer === customer) loadCustomerItems(customer);
+    await persistLedgerMaster();
+    toast("削除しました");
+    render();
+  } catch (e) {
+    console.error(e);
+    toast("削除に失敗しました", "error");
+  }
+}
+
 async function loadMasters() {
   state.loading = true;
   render();
   if (state.demoMode) {
-    state.customers = DEMO_CUSTOMERS;
-    state.prices = DEMO_PRICES;
+    await loadLedgerMaster();
     try {
       const cached = localStorage.getItem("lg_ledgers_demo");
       state.ledgers = applyLedgerRetention(cached ? JSON.parse(cached) : []);
@@ -432,21 +662,18 @@ async function loadMasters() {
     return;
   }
   try {
-    const [customers, prices] = await Promise.all([
-      fsLoad("customers"),
-      fsLoad("prices")
-    ]);
-    state.customers = Array.isArray(customers) ? customers : [];
-    state.prices = Array.isArray(prices) ? prices : [];
+    await loadLedgerMaster();
     await loadLedgersFromCloud();
   } catch (e) {
     console.error(e);
     toast("マスタの読込に失敗しました", "error");
+    loadLedgerMasterFromCache();
     try {
       const cached = localStorage.getItem("lg_ledgers");
       if (cached) state.ledgers = applyLedgerRetention(JSON.parse(cached));
     } catch {}
   }
+  if (!state.masterCustomer && state.customers.length) state.masterCustomer = state.customers[0].name;
   state.loading = false;
   render();
 }
@@ -663,7 +890,7 @@ function renderInputTab() {
           <div><label class="lbl">納品日</label>
             <input type="date" id="delivery-date" value="${state.deliveryDate || todayInput()}"></div>
         </div>
-        <p class="sync-note">${state.demoMode ? "試用モード：サンプル客先・品目（ログイン省略）" : "品目はプゥルヴー伝票の客先単価表から読み込み"}</p>
+        <p class="sync-note">${state.demoMode ? "試用モード：この端末のマスタを使用" : "台帳アプリのマスタ（全端末で共有）"}</p>
       </div>
       <div class="items-panel" style="--iz:${state.itemZoom}">
         <button type="button" class="scroll-btn" id="scroll-up" aria-label="上へスクロール">▲ 上へ</button>
@@ -695,6 +922,83 @@ function renderHistoryTab() {
       </tr>`;
     }).join("")}</tbody>
   </table>`;
+}
+
+function renderMasterTab() {
+  const section = state.masterSection;
+  const customerSection = section === "customers";
+  const custRows = state.customers.map((c, i) => {
+    const count = customerItemRows(c.name).length;
+    return `<div class="master-row">
+      <div class="master-row-body">
+        <div class="master-row-title">${esc(c.name)}</div>
+        <div class="master-row-meta">品目 ${count} 件${c.id ? ` · ID ${esc(c.id)}` : ""}</div>
+      </div>
+      <div class="master-row-actions">
+        <button type="button" class="master-btn master-btn-edit" data-master-customer-idx="${i}">編集</button>
+        <button type="button" class="master-btn master-btn-del" data-master-del-customer-idx="${i}">削除</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  const masterCust = state.masterCustomer || state.customers[0]?.name || "";
+  const itemRows = masterCust ? customerItemRows(masterCust).map((p, i) => `
+    <div class="master-row">
+      <div class="master-row-body">
+        <div class="master-row-title">${esc(p.name)}</div>
+        <div class="master-row-meta">${p.code ? `コード ${esc(p.code)}` : "コードなし"}</div>
+      </div>
+      <div class="master-row-actions">
+        <button type="button" class="master-btn master-btn-edit" data-master-edit-item="${i}">編集</button>
+        <button type="button" class="master-btn master-btn-del" data-master-del-item="${i}">削除</button>
+      </div>
+    </div>`).join("") : "";
+
+  const custOpts = state.customers
+    .map(c => `<option value="${esc(c.name)}"${masterCust === c.name ? " selected" : ""}>${esc(c.name)}</option>`)
+    .join("");
+
+  return `
+    <div class="card" style="margin-bottom:12px">
+      <p class="sync-note" style="margin:0 0 10px">客先と品目を登録・編集できます。伝票アプリのマスタは変更しません。</p>
+      <div class="master-subtabs">
+        <button type="button" class="master-subtab${customerSection ? " active" : ""}" data-master-section="customers">客先</button>
+        <button type="button" class="master-subtab${!customerSection ? " active" : ""}" data-master-section="items">品目</button>
+      </div>
+      ${customerSection ? `
+        <button type="button" class="master-add" id="master-add-customer">＋ 客先を追加</button>
+        <div class="master-list" style="margin-top:10px">${custRows || `<div class="empty" style="padding:24px">客先がありません</div>`}</div>
+      ` : `
+        <div class="master-toolbar">
+          <select id="master-cust-select">${state.customers.length ? custOpts : `<option value="">客先がありません</option>`}</select>
+        </div>
+        <button type="button" class="master-add" id="master-add-item" ${state.customers.length ? "" : "disabled"}>＋ 品目を追加</button>
+        <div class="master-list" style="margin-top:10px">${itemRows || `<div class="empty" style="padding:24px">${masterCust ? "品目がありません" : "客先を登録してください"}</div>`}</div>
+      `}
+    </div>`;
+}
+
+function renderMasterForm() {
+  const f = state.masterForm;
+  if (!f) return "";
+  const isCustomer = f.kind === "customer";
+  const title = isCustomer
+    ? (f.mode === "add" ? "客先を追加" : "客先を編集")
+    : (f.mode === "add" ? "品目を追加" : "品目を編集");
+  return `
+    <div class="detail-overlay" id="master-form-overlay">
+      <div class="master-form-panel">
+        <h3>${title}</h3>
+        ${!isCustomer ? `<p style="font-size:13px;color:#666;margin-bottom:10px">客先：${esc(f.customer || state.masterCustomer)}</p>` : ""}
+        <label class="lbl">${isCustomer ? "客先名" : "品名"}</label>
+        <input type="text" id="master-form-name" value="${esc(f.name)}" placeholder="${isCustomer ? "例：(株)サイゼリヤ 神奈川工場" : "例：作業着（上）"}">
+        ${!isCustomer ? `<label class="lbl">コード（任意）</label><input type="text" id="master-form-code" value="${esc(f.code)}" placeholder="例：U001">` : ""}
+        <div class="master-form-actions">
+          <button type="button" class="btn btn-ghost" id="master-form-cancel" style="background:#f4f3ef;color:#1a1a2e">キャンセル</button>
+          <button type="button" class="btn btn-primary" id="master-form-save">保存</button>
+        </div>
+      </div>
+    </div>`;
 }
 
 function renderDetail(ledger) {
@@ -746,10 +1050,11 @@ function render() {
       <div class="tabs">
         <button class="tab${state.tab === 0 ? " active" : ""}" data-tab="0">入力</button>
         <button class="tab${state.tab === 1 ? " active" : ""}" data-tab="1">履歴 ${state.ledgers.length ? `(${state.ledgers.length})` : ""}</button>
+        <button class="tab${state.tab === 2 ? " active" : ""}" data-tab="2">マスタ</button>
       </div>
       <div class="workspace">
         <main class="main">
-          ${state.loading ? `<div class="empty">読込中…</div>` : state.tab === 0 ? renderInputTab() : `<div class="main-scroll">${renderHistoryTab()}</div>`}
+          ${state.loading ? `<div class="empty">読込中…</div>` : state.tab === 0 ? renderInputTab() : `<div class="main-scroll">${state.tab === 1 ? renderHistoryTab() : renderMasterTab()}</div>`}
         </main>
         <aside class="numpad-wrap${showNumpad ? "" : " hidden"}${state.focus ? "" : " disabled"}" aria-label="テンキー">
           <div class="sidebar-actions">
@@ -767,14 +1072,19 @@ function render() {
       </div>
     </div>
     ${state.detail ? renderDetail(state.detail) : ""}
-    ${state.invoiceMemo ? renderInvoiceMemo(state.invoiceMemo) : ""}`;
+    ${state.invoiceMemo ? renderInvoiceMemo(state.invoiceMemo) : ""}
+    ${state.masterForm ? renderMasterForm() : ""}`;
 
   document.querySelectorAll(".tab").forEach(btn => {
     btn.onclick = async () => {
       state.tab = +btn.dataset.tab;
       state.focus = null;
+      state.masterForm = null;
       if (state.tab === 1 && !state.demoMode && !state.loading) {
         try { await loadLedgersFromCloud(); } catch {}
+      }
+      if (state.tab === 2 && !state.masterCustomer && state.customers.length) {
+        state.masterCustomer = state.customers[0].name;
       }
       render();
     };
@@ -839,6 +1149,51 @@ function render() {
       };
     });
   }
+
+  if (state.tab === 2) {
+    document.querySelectorAll("[data-master-section]").forEach(btn => {
+      btn.onclick = () => {
+        state.masterSection = btn.dataset.masterSection;
+        render();
+      };
+    });
+    const addCust = document.getElementById("master-add-customer");
+    if (addCust) addCust.onclick = () => openMasterCustomerForm("add");
+    document.querySelectorAll("[data-master-customer-idx]").forEach(btn => {
+      btn.onclick = () => {
+        const c = state.customers[+btn.dataset.masterCustomerIdx];
+        if (c) openMasterCustomerForm("edit", c.name);
+      };
+    });
+    document.querySelectorAll("[data-master-del-customer-idx]").forEach(btn => {
+      btn.onclick = () => {
+        const c = state.customers[+btn.dataset.masterDelCustomerIdx];
+        if (c) deleteMasterCustomer(c.name);
+      };
+    });
+    const masterSel = document.getElementById("master-cust-select");
+    if (masterSel) masterSel.onchange = e => {
+      state.masterCustomer = e.target.value;
+      render();
+    };
+    const addItem = document.getElementById("master-add-item");
+    if (addItem) addItem.onclick = () => openMasterItemForm("add", state.masterCustomer);
+    document.querySelectorAll("[data-master-edit-item]").forEach(btn => {
+      btn.onclick = () => openMasterItemForm("edit", state.masterCustomer, +btn.dataset.masterEditItem);
+    });
+    document.querySelectorAll("[data-master-del-item]").forEach(btn => {
+      btn.onclick = () => deleteMasterItem(state.masterCustomer, +btn.dataset.masterDelItem);
+    });
+  }
+
+  const masterSave = document.getElementById("master-form-save");
+  const masterCancel = document.getElementById("master-form-cancel");
+  const masterOverlay = document.getElementById("master-form-overlay");
+  if (masterSave) masterSave.onclick = () => submitMasterForm();
+  if (masterCancel) masterCancel.onclick = () => { state.masterForm = null; render(); };
+  if (masterOverlay) masterOverlay.onclick = e => { if (e.target === masterOverlay) { state.masterForm = null; render(); } };
+  const masterNameInput = document.getElementById("master-form-name");
+  if (masterNameInput) masterNameInput.onkeydown = e => { if (e.key === "Enter") submitMasterForm(); };
 
   document.querySelectorAll(".nk").forEach(btn => {
     btn.onclick = () => numpadPress(btn.dataset.k);
