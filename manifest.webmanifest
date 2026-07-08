@@ -3,8 +3,24 @@
   "short_name": "入出荷",
   "description": "プゥル・ヴー ホワイト事業部 入出荷台帳",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#f4f3ef",
   "theme_color": "#1a1a2e",
-  "lang": "ja"
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }

@@ -4,8 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="入出荷台帳">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <title>入出荷台帳</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -186,6 +191,47 @@ async function endWorkDay() {
 }
 
 const IS_LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+const IS_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const IS_STANDALONE = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+let deferredInstallPrompt = null;
+
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  updateInstallUi();
+});
+
+function updateInstallUi() {
+  const show = !IS_STANDALONE && (deferredInstallPrompt || IS_IOS);
+  document.querySelectorAll(".install-btn").forEach(btn => {
+    btn.classList.toggle("hidden", !show);
+    btn.textContent = IS_IOS && !deferredInstallPrompt ? "ホーム画面に追加" : "アプリをインストール";
+  });
+}
+
+async function promptInstall() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    updateInstallUi();
+    return;
+  }
+  toast("ブラウザの共有メニューから「ホーム画面に追加」を選んでください");
+}
+
+function bindInstallButtons() {
+  document.querySelectorAll(".install-btn").forEach(btn => {
+    btn.onclick = () => promptInstall();
+  });
+  updateInstallUi();
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
 
 const DEMO_CUSTOMERS = [
   { id: "D01", name: "サンプル商事" },
@@ -842,6 +888,7 @@ function renderLogin(notice) {
         <input type="password" id="login-pass" placeholder="パスワード" autocomplete="current-password">
         <p id="login-error" style="font-size:13px;color:#c62828;min-height:20px;margin-top:8px;text-align:center"></p>
         <button class="btn btn-primary" style="width:100%;padding:12px;margin-top:4px" id="login-btn">ログイン</button>
+        <button type="button" class="btn btn-ghost install-btn hidden" style="width:100%;padding:12px;margin-top:10px">アプリをインストール</button>
         ${IS_LOCAL ? `<button class="btn btn-ghost" style="width:100%;padding:12px;margin-top:10px" id="demo-btn">ログインなしで試す</button>` : ""}
       </div>
     </div>`;
@@ -859,6 +906,7 @@ function renderLogin(notice) {
   };
   document.getElementById("login-btn").onclick = doLogin;
   passInput.onkeydown = e => { if (e.key === "Enter") doLogin(); };
+  bindInstallButtons();
 }
 
 function renderInputTab() {
@@ -1044,6 +1092,7 @@ function render() {
             <span class="zoom-label">${Math.round(state.itemZoom * 100)}%</span>
             <button type="button" class="btn btn-ghost btn-zoom" id="btn-zoom-in" aria-label="品目を拡大" ${state.itemZoom >= ZOOM_MAX ? "disabled" : ""}>＋</button>
           </div>
+          <button type="button" class="btn btn-ghost install-btn hidden" id="btn-install">インストール</button>
           <button class="btn btn-ghost" id="btn-logout">${state.demoMode ? "終了" : "業務終了"}</button>
         </div>
       </header>
@@ -1210,6 +1259,7 @@ function render() {
   if (memoClose) memoClose.onclick = () => { state.invoiceMemo = null; render(); };
   const memoOverlay = document.getElementById("memo-overlay");
   if (memoOverlay) memoOverlay.onclick = e => { if (e.target === memoOverlay) { state.invoiceMemo = null; render(); } };
+  bindInstallButtons();
 }
 
 function startDemoMode() {
