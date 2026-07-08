@@ -33,28 +33,29 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 .input-fixed{flex-shrink:0;margin-bottom:8px}
 .items-panel{display:flex;flex-direction:column;flex:1;min-height:0;gap:6px}
 .items-scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:10px}
-.scroll-btn{border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a2e;font-size:13px;font-weight:700;padding:6px;cursor:pointer;font-family:inherit;flex-shrink:0}
+.scroll-btn{border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a2e;font-size:12px;font-weight:700;padding:4px;cursor:pointer;font-family:inherit;flex-shrink:0}
 .scroll-btn:active{background:#f4f3ef}
 .card{background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:14px;margin-bottom:12px}
-.items-scroll.card{margin-bottom:0;padding:6px 8px 4px}
+.items-scroll.card{margin-bottom:0;padding:4px 6px 2px}
 .lbl{font-size:12px;color:#666;font-weight:600;margin-bottom:6px;display:block}
 select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:15px;font-family:inherit;background:#fff}
 .meta-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .item-list{display:flex;flex-direction:column;gap:0}
-.item-row{display:grid;grid-template-columns:1fr 46px 46px;gap:3px;align-items:center;background:#fff;border-bottom:1px solid #eceae4;padding:1px 4px;border-radius:0}
+.item-row{display:grid;grid-template-columns:1fr 38px 38px;gap:2px;align-items:center;background:#fff;border-bottom:1px solid #eceae4;padding:0 3px;min-height:17px;border-radius:0}
 .item-row:first-of-type{border-top:1px solid #eceae4}
 .item-row.active{background:#faf9f7;border-bottom-color:#1a1a2e}
-.item-name{font-size:11px;font-weight:600;line-height:1.1;word-break:break-all}
-.item-code{font-size:7px;color:#888;margin-top:0;line-height:1}
-.qty-cell{text-align:center;padding:0 1px;border:1px solid #ddd;border-radius:3px;font-size:13px;font-weight:700;background:#faf9f7;cursor:pointer;min-height:20px;height:20px;display:flex;align-items:center;justify-content:center}
-.qty-cell.empty{color:#ccc;font-weight:500;font-size:10px}
-.qty-cell.in-head::before,.qty-cell.out-head::before{display:block;font-size:8px;font-weight:600;margin-bottom:0}
+.item-main{display:flex;align-items:baseline;gap:3px;min-width:0;overflow:hidden}
+.item-name{font-size:10px;font-weight:600;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.item-code{font-size:7px;color:#888;flex-shrink:0;line-height:1}
+.qty-cell{text-align:center;padding:0;border:1px solid #ddd;border-radius:2px;font-size:11px;font-weight:700;background:#faf9f7;cursor:pointer;min-height:16px;height:16px;display:flex;align-items:center;justify-content:center;line-height:1}
+.qty-cell.empty{color:#ccc;font-weight:500;font-size:9px}
+.qty-cell.in-head::before,.qty-cell.out-head::before{display:block;font-size:7px;font-weight:600;margin-bottom:0;line-height:1}
 .qty-cell.in-col{border-color:#b8dcc8;background:#f6fbf8}
 .qty-cell.out-col{border-color:#d4c4f0;background:#faf7ff}
 .qty-cell.active-in{border-color:#2d6a4f;background:#e8f5ec}
 .qty-cell.active-out{border-color:#5b4b8a;background:#f0ebff}
-.list-head{display:grid;grid-template-columns:1fr 46px 46px;gap:3px;padding:0 4px 1px;font-size:8px;font-weight:700;color:#888;text-align:center}
-.items-panel{gap:4px}
+.list-head{display:grid;grid-template-columns:1fr 38px 38px;gap:2px;padding:0 3px 0;font-size:7px;font-weight:700;color:#888;text-align:center;line-height:1.2}
+.items-panel{gap:3px}
 .list-head span:first-child{text-align:left;padding-left:0}
 .numpad-wrap{width:280px;flex-shrink:0;background:#fff;border-left:2px solid #1a1a2e;padding:12px 14px;display:flex;flex-direction:column;justify-content:flex-start;gap:10px;align-self:stretch;overflow:hidden}
 .sidebar-actions{display:flex;flex-direction:column;gap:8px;flex-shrink:0}
@@ -561,7 +562,7 @@ function renderInputTab() {
          const inDisp = inActive ? (state.buffer || "0") : (it.inQty !== "" ? it.inQty : "—");
          const outDisp = outActive ? (state.buffer || "0") : (it.outQty !== "" ? it.outQty : "—");
          return `<div class="item-row${inActive || outActive ? " active" : ""}">
-           <div><div class="item-name">${esc(it.name)}</div>${it.code ? `<div class="item-code">${esc(it.code)}</div>` : ""}</div>
+           <div class="item-main"><span class="item-name">${esc(it.name)}</span>${it.code ? `<span class="item-code">${esc(it.code)}</span>` : ""}</div>
            <div class="qty-cell in-col${inActive ? " active-in" : ""}${it.inQty === "" && !inActive ? " empty" : ""}" data-i="${i}" data-f="in">${esc(String(inDisp))}</div>
            <div class="qty-cell out-col${outActive ? " active-out" : ""}${it.outQty === "" && !outActive ? " empty" : ""}" data-i="${i}" data-f="out">${esc(String(outDisp))}</div>
          </div>`;
