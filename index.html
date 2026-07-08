@@ -27,24 +27,34 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 .tab{flex:1;padding:12px;border:none;background:none;font-size:14px;font-weight:600;color:#888;cursor:pointer;font-family:inherit;border-bottom:3px solid transparent}
 .tab.active{color:#1a1a2e;border-bottom-color:#1a1a2e}
 .workspace{display:flex;flex:1;min-height:0;overflow:hidden}
-.main{flex:1;min-width:0;min-height:0;padding:12px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.main{flex:1;min-width:0;min-height:0;padding:12px;display:flex;flex-direction:column;overflow:hidden}
+.main-scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.input-layout{display:flex;flex-direction:column;flex:1;min-height:0}
+.input-fixed{flex-shrink:0;margin-bottom:8px}
+.items-panel{display:flex;flex-direction:column;flex:1;min-height:0;gap:6px}
+.items-scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:10px}
+.scroll-btn{border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a2e;font-size:13px;font-weight:700;padding:6px;cursor:pointer;font-family:inherit;flex-shrink:0}
+.scroll-btn:active{background:#f4f3ef}
 .card{background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:14px;margin-bottom:12px}
+.items-scroll.card{margin-bottom:0;padding:6px 8px 4px}
 .lbl{font-size:12px;color:#666;font-weight:600;margin-bottom:6px;display:block}
 select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:15px;font-family:inherit;background:#fff}
 .meta-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.item-list{display:flex;flex-direction:column;gap:3px}
-.item-row{display:grid;grid-template-columns:1fr 58px 58px;gap:5px;align-items:center;background:#fff;border:1px solid #e8e6e0;border-radius:6px;padding:4px 8px}
-.item-row.active{border-color:#1a1a2e;box-shadow:0 0 0 2px rgba(26,26,46,.12)}
-.item-name{font-size:13px;font-weight:600;line-height:1.2;word-break:break-all}
-.item-code{font-size:9px;color:#888;margin-top:0}
-.qty-cell{text-align:center;padding:3px 2px;border:1px solid #ddd;border-radius:5px;font-size:16px;font-weight:700;background:#faf9f7;cursor:pointer;min-height:30px;display:flex;align-items:center;justify-content:center}
-.qty-cell.empty{color:#ccc;font-weight:500;font-size:13px}
-.qty-cell.in-head::before,.qty-cell.out-head::before{display:block;font-size:10px;font-weight:600;margin-bottom:2px}
+.item-list{display:flex;flex-direction:column;gap:0}
+.item-row{display:grid;grid-template-columns:1fr 46px 46px;gap:3px;align-items:center;background:#fff;border-bottom:1px solid #eceae4;padding:1px 4px;border-radius:0}
+.item-row:first-of-type{border-top:1px solid #eceae4}
+.item-row.active{background:#faf9f7;border-bottom-color:#1a1a2e}
+.item-name{font-size:11px;font-weight:600;line-height:1.1;word-break:break-all}
+.item-code{font-size:7px;color:#888;margin-top:0;line-height:1}
+.qty-cell{text-align:center;padding:0 1px;border:1px solid #ddd;border-radius:3px;font-size:13px;font-weight:700;background:#faf9f7;cursor:pointer;min-height:20px;height:20px;display:flex;align-items:center;justify-content:center}
+.qty-cell.empty{color:#ccc;font-weight:500;font-size:10px}
+.qty-cell.in-head::before,.qty-cell.out-head::before{display:block;font-size:8px;font-weight:600;margin-bottom:0}
 .qty-cell.in-col{border-color:#b8dcc8;background:#f6fbf8}
 .qty-cell.out-col{border-color:#d4c4f0;background:#faf7ff}
 .qty-cell.active-in{border-color:#2d6a4f;background:#e8f5ec}
 .qty-cell.active-out{border-color:#5b4b8a;background:#f0ebff}
-.list-head{display:grid;grid-template-columns:1fr 58px 58px;gap:5px;padding:0 8px 3px;font-size:9px;font-weight:700;color:#888;text-align:center}
+.list-head{display:grid;grid-template-columns:1fr 46px 46px;gap:3px;padding:0 4px 1px;font-size:8px;font-weight:700;color:#888;text-align:center}
+.items-panel{gap:4px}
 .list-head span:first-child{text-align:left;padding-left:0}
 .numpad-wrap{width:280px;flex-shrink:0;background:#fff;border-left:2px solid #1a1a2e;padding:12px 14px;display:flex;flex-direction:column;justify-content:flex-start;gap:10px;align-self:stretch;overflow:hidden}
 .sidebar-actions{display:flex;flex-direction:column;gap:8px;flex-shrink:0}
@@ -558,16 +568,22 @@ function renderInputTab() {
        }).join("")}</div>`;
 
   return `
-    <div class="card">
-      <div class="meta-row">
-        <div><label class="lbl">客先</label>
-          <select id="cust-select"><option value="">-- 選択 --</option>${custOpts}</select></div>
-        <div><label class="lbl">納品日</label>
-          <input type="date" id="delivery-date" value="${state.deliveryDate || todayInput()}"></div>
+    <div class="input-layout">
+      <div class="card input-fixed">
+        <div class="meta-row">
+          <div><label class="lbl">客先</label>
+            <select id="cust-select"><option value="">-- 選択 --</option>${custOpts}</select></div>
+          <div><label class="lbl">納品日</label>
+            <input type="date" id="delivery-date" value="${state.deliveryDate || todayInput()}"></div>
+        </div>
+        <p class="sync-note">${state.demoMode ? "試用モード：サンプル客先・品目（ログイン省略）" : "品目はプゥルヴー伝票の客先単価表から読み込み"}</p>
       </div>
-      <p class="sync-note">${state.demoMode ? "試用モード：サンプル客先・品目（ログイン省略）" : "品目はプゥルヴー伝票の客先単価表から読み込み"}</p>
-    </div>
-    <div class="card" style="padding-bottom:10px">${rows}</div>`;
+      <div class="items-panel">
+        <button type="button" class="scroll-btn" id="scroll-up" aria-label="上へスクロール">▲ 上へ</button>
+        <div class="card items-scroll" id="items-scroll">${rows}</div>
+        <button type="button" class="scroll-btn" id="scroll-down" aria-label="下へスクロール">▼ 下へ</button>
+      </div>
+    </div>`;
 }
 
 function renderHistoryTab() {
@@ -636,7 +652,7 @@ function render() {
       </div>
       <div class="workspace">
         <main class="main">
-          ${state.loading ? `<div class="empty">読込中…</div>` : state.tab === 0 ? renderInputTab() : renderHistoryTab()}
+          ${state.loading ? `<div class="empty">読込中…</div>` : state.tab === 0 ? renderInputTab() : `<div class="main-scroll">${renderHistoryTab()}</div>`}
         </main>
         <aside class="numpad-wrap${showNumpad ? "" : " hidden"}${state.focus ? "" : " disabled"}" aria-label="テンキー">
           <div class="sidebar-actions">
@@ -687,6 +703,15 @@ function render() {
     document.querySelectorAll(".qty-cell").forEach(el => {
       el.onclick = () => setFocus(+el.dataset.i, el.dataset.f);
     });
+
+    const scrollEl = document.getElementById("items-scroll");
+    const scrollUp = document.getElementById("scroll-up");
+    const scrollDown = document.getElementById("scroll-down");
+    if (scrollEl && scrollUp && scrollDown) {
+      const scrollStep = () => Math.max(120, scrollEl.clientHeight * 0.55);
+      scrollUp.onclick = () => scrollEl.scrollBy({ top: -scrollStep(), behavior: "smooth" });
+      scrollDown.onclick = () => scrollEl.scrollBy({ top: scrollStep(), behavior: "smooth" });
+    }
   }
 
   const saveBtn = document.getElementById("btn-save");
