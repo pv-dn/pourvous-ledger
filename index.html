@@ -143,10 +143,13 @@ select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;borde
 .master-form-actions{display:flex;gap:8px;margin-top:6px}
 .master-form-actions .btn{flex:1;padding:12px}
 </style>
+</head>
+<body>
+<div id="root"><div class="login-wrap"><div class="login-card"><h1>入出荷台帳</h1><p>読込中…</p></div></div></div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, orderBy, limit, getDocs, where, deleteDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
-import { initializeAuth, indexedDBLocalPersistence, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+import { getAuth, setPersistence, browserLocalPersistence, indexedDBLocalPersistence, inMemoryPersistence, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBRvXOmLV_iU9ybzJrquJSglUYfEON_CsM",
@@ -159,7 +162,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = initializeAuth(app, { persistence: indexedDBLocalPersistence });
+const auth = getAuth(app);
 
 const SESSION_DAY_KEY = "lg_sessionDay";
 const HISTORY_MONTHS = 2;
@@ -193,6 +196,11 @@ async function endWorkDay() {
 const IS_LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
 const IS_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 const IS_STANDALONE = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+const IS_PHONE = /iPhone|iPod|Android.*Mobile/i.test(navigator.userAgent);
+
+function canMasterFullEdit() {
+  return !IS_PHONE;
+}
 let deferredInstallPrompt = null;
 
 window.addEventListener("beforeinstallprompt", e => {
@@ -227,10 +235,11 @@ function bindInstallButtons() {
   updateInstallUi();
 }
 
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
-  });
+function registerServiceWorkerLater() {
+  if (!("serviceWorker" in navigator)) return;
+  const run = () => navigator.serviceWorker.register("./sw.js").catch(() => {});
+  if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 5000 });
+  else setTimeout(run, 3000);
 }
 
 const DEMO_CUSTOMERS = [
@@ -592,11 +601,19 @@ function customerItemRows(customer) {
 }
 
 function openMasterCustomerForm(mode, name = "") {
+  if (!canMasterFullEdit()) {
+    toast("客先の編集はPCから行ってください", "error");
+    return;
+  }
   state.masterForm = { kind: "customer", mode, name, oldName: mode === "edit" ? name : "" };
   render();
 }
 
 function openMasterItemForm(mode, customer, index = -1) {
+  if (mode === "edit" && !canMasterFullEdit()) {
+    toast("品目の編集はPCから行ってください", "error");
+    return;
+  }
   const rows = customerItemRows(customer);
   const row = mode === "edit" ? rows[index] : null;
   state.masterForm = {
@@ -613,6 +630,14 @@ function openMasterItemForm(mode, customer, index = -1) {
 async function submitMasterForm() {
   const f = state.masterForm;
   if (!f) return;
+  if (f.kind === "customer" && !canMasterFullEdit()) {
+    toast("客先の編集はPCから行ってください", "error");
+    return;
+  }
+  if (f.kind === "item" && f.mode === "edit" && !canMasterFullEdit()) {
+    toast("品目の編集はPCから行ってください", "error");
+    return;
+  }
   const name = (document.getElementById("master-form-name")?.value || "").trim();
   const code = (document.getElementById("master-form-code")?.value || "").trim();
   try {
@@ -657,6 +682,10 @@ async function submitMasterForm() {
 }
 
 async function deleteMasterCustomer(name) {
+  if (!canMasterFullEdit()) {
+    toast("客先の削除はPCから行ってください", "error");
+    return;
+  }
   if (!confirm(`「${name}」を削除しますか？\nこの客先の品目もすべて削除されます。`)) return;
   try {
     state.customers = state.customers.filter(c => c.name !== name);
@@ -678,6 +707,10 @@ async function deleteMasterCustomer(name) {
 }
 
 async function deleteMasterItem(customer, index) {
+  if (!canMasterFullEdit()) {
+    toast("品目の削除はPCから行ってください", "error");
+    return;
+  }
   const rows = customerItemRows(customer);
   const target = rows[index];
   if (!target) return;
@@ -973,7 +1006,8 @@ function renderHistoryTab() {
 }
 
 function renderMasterTab() {
-  const section = state.masterSection;
+  const fullEdit = canMasterFullEdit();
+  const section = fullEdit ? state.masterSection : "items";
   const customerSection = section === "customers";
   const custRows = state.customers.map((c, i) => {
     const count = customerItemRows(c.name).length;
@@ -982,10 +1016,10 @@ function renderMasterTab() {
         <div class="master-row-title">${esc(c.name)}</div>
         <div class="master-row-meta">品目 ${count} 件${c.id ? ` · ID ${esc(c.id)}` : ""}</div>
       </div>
-      <div class="master-row-actions">
+      ${fullEdit ? `<div class="master-row-actions">
         <button type="button" class="master-btn master-btn-edit" data-master-customer-idx="${i}">編集</button>
         <button type="button" class="master-btn master-btn-del" data-master-del-customer-idx="${i}">削除</button>
-      </div>
+      </div>` : ""}
     </div>`;
   }).join("");
 
@@ -996,23 +1030,27 @@ function renderMasterTab() {
         <div class="master-row-title">${esc(p.name)}</div>
         <div class="master-row-meta">${p.code ? `コード ${esc(p.code)}` : "コードなし"}</div>
       </div>
-      <div class="master-row-actions">
+      ${fullEdit ? `<div class="master-row-actions">
         <button type="button" class="master-btn master-btn-edit" data-master-edit-item="${i}">編集</button>
         <button type="button" class="master-btn master-btn-del" data-master-del-item="${i}">削除</button>
-      </div>
+      </div>` : ""}
     </div>`).join("") : "";
 
   const custOpts = state.customers
     .map(c => `<option value="${esc(c.name)}"${masterCust === c.name ? " selected" : ""}>${esc(c.name)}</option>`)
     .join("");
 
+  const note = fullEdit
+    ? "客先と品目を登録・編集できます。伝票アプリのマスタは変更しません。"
+    : "スマホでは品目の追加のみ可能です。客先の登録・編集・削除はPCから行ってください。";
+
   return `
     <div class="card" style="margin-bottom:12px">
-      <p class="sync-note" style="margin:0 0 10px">客先と品目を登録・編集できます。伝票アプリのマスタは変更しません。</p>
-      <div class="master-subtabs">
+      <p class="sync-note" style="margin:0 0 10px">${note}</p>
+      ${fullEdit ? `<div class="master-subtabs">
         <button type="button" class="master-subtab${customerSection ? " active" : ""}" data-master-section="customers">客先</button>
         <button type="button" class="master-subtab${!customerSection ? " active" : ""}" data-master-section="items">品目</button>
-      </div>
+      </div>` : ""}
       ${customerSection ? `
         <button type="button" class="master-add" id="master-add-customer">＋ 客先を追加</button>
         <div class="master-list" style="margin-top:10px">${custRows || `<div class="empty" style="padding:24px">客先がありません</div>`}</div>
@@ -1132,8 +1170,9 @@ function render() {
       if (state.tab === 1 && !state.demoMode && !state.loading) {
         try { await loadLedgersFromCloud(); } catch {}
       }
-      if (state.tab === 2 && !state.masterCustomer && state.customers.length) {
-        state.masterCustomer = state.customers[0].name;
+      if (state.tab === 2) {
+        if (!canMasterFullEdit()) state.masterSection = "items";
+        if (!state.masterCustomer && state.customers.length) state.masterCustomer = state.customers[0].name;
       }
       render();
     };
@@ -1270,35 +1309,55 @@ function startDemoMode() {
 window.bootApp = async function() {
   if (!state.deliveryDate) state.deliveryDate = todayInput();
   await loadMasters();
+  registerServiceWorkerLater();
 };
 
-onAuthStateChanged(auth, async user => {
-  if (user) {
-    const saved = localStorage.getItem(SESSION_DAY_KEY);
-    const today = sessionDayKey();
-    if (saved && saved !== today) {
-      await signOut(auth);
-      clearSessionDay();
-      state.userShortId = "";
-      state.userDisplayName = "";
-      renderLogin("日付が変わりました。朝いちどログインしてください。");
-      return;
-    }
-    if (!state.userDisplayName && !state.userShortId) {
-      await loadUserProfile(user.uid);
-    }
-    markSessionDay();
-    state.demoMode = false;
-    window.bootApp();
-  } else if (IS_LOCAL) {
-    startDemoMode();
-  } else {
-    renderLogin();
+async function startApp() {
+  for (const mode of [indexedDBLocalPersistence, browserLocalPersistence, inMemoryPersistence]) {
+    try {
+      await setPersistence(auth, mode);
+      break;
+    } catch {}
   }
+  onAuthStateChanged(auth, async user => {
+    if (user) {
+      const saved = localStorage.getItem(SESSION_DAY_KEY);
+      const today = sessionDayKey();
+      if (saved && saved !== today) {
+        await signOut(auth);
+        clearSessionDay();
+        state.userShortId = "";
+        state.userDisplayName = "";
+        renderLogin("日付が変わりました。朝いちどログインしてください。");
+        return;
+      }
+      if (!state.userDisplayName && !state.userShortId) {
+        await loadUserProfile(user.uid);
+      }
+      markSessionDay();
+      state.demoMode = false;
+      window.bootApp();
+    } else if (IS_LOCAL) {
+      startDemoMode();
+    } else {
+      renderLogin();
+    }
+  }, err => {
+    console.error(err);
+    renderLogin("接続エラーです。ネットワークを確認して再試行してください。");
+  });
+}
+
+startApp().catch(err => {
+  console.error(err);
+  renderLogin("起動に失敗しました。アプリを削除して再インストールしてください。");
+});
+
+window.addEventListener("error", e => {
+  const root = document.getElementById("root");
+  if (!root) return;
+  root.innerHTML = `<div class="login-wrap"><div class="login-card"><h1>入出荷台帳</h1><p style="color:#c62828">起動エラーが発生しました。</p><p style="font-size:13px;margin-top:12px;line-height:1.6">① ホーム画面のアイコンを削除<br>② ブラウザでこのページを開き直す<br>③ 再インストール</p></div></div>`;
 });
 </script>
-</head>
-<body>
-<div id="root"></div>
 </body>
 </html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>入出荷台帳 — タブレットセットアップ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+      background: #f4f3ef;
+      color: #1a1a2e;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 40px 48px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    .sub { font-size: 13px; color: #888; margin-bottom: 28px; }
+    .qr-wrap {
+      background: #fff;
+      border: 2px solid #e8e6e0;
+      border-radius: 16px;
+      padding: 20px;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
+    .qr-wrap img { display: block; width: 280px; height: 280px; }
+    .url {
+      font-size: 13px;
+      color: #5b4b8a;
+      word-break: break-all;
+      margin-bottom: 28px;
+    }
+    .steps { text-align: left; font-size: 14px; line-height: 1.8; }
+    .steps h2 { font-size: 13px; color: #888; margin-bottom: 8px; font-weight: 700; }
+    .steps ol { padding-left: 1.4em; }
+    .steps li { margin-bottom: 4px; }
+    .note {
+      margin-top: 24px;
+      font-size: 12px;
+      color: #888;
+      border-top: 1px solid #eceae4;
+      padding-top: 16px;
+    }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .card { box-shadow: none; padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>入出荷台帳</h1>
+    <p class="sub">タブレット 初回セットアップ</p>
+    <div class="qr-wrap">
+      <img
+        src="https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=10&data=https%3A%2F%2Fpv-dn.github.io%2Fpourvous-ledger%2F"
+        width="280"
+        height="280"
+        alt="入出荷台帳 QRコード"
+      >
+    </div>
+    <p class="url">https://pv-dn.github.io/pourvous-ledger/</p>
+    <div class="steps">
+      <h2>手順</h2>
+      <ol>
+        <li>QRコードをカメラで読み取る</li>
+        <li><strong>Android</strong>：「アプリをインストール」をタップ</li>
+        <li><strong>繰り返し停止する場合</strong>：アイコン長押し→削除→Chromeの設定→サイトの設定→pv-dn.github.io→データ削除→再インストール</li>
+        <li><strong>iPad</strong>：共有 →「ホーム画面に追加」</li>
+        <li>ホーム画面の「入出荷」から起動（朝1回ログイン）</li>
+      </ol>
+    </div>
+    <p class="note">印刷して事務所に掲示できます（Ctrl+P）</p>
+  </div>
+</body>
+</html>
