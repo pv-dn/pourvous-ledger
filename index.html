@@ -958,12 +958,11 @@ function numpadPress(key) {
   } else if (key === "enter") {
     applyBuffer();
     const { index, field } = state.focus;
-    if (field === "in") {
-      state.focus = { index, field: "out" };
-      state.buffer = String(state.items[index].outQty || "");
-    } else if (index + 1 < state.items.length) {
-      state.focus = { index: index + 1, field: "in" };
-      state.buffer = String(state.items[index + 1].inQty || "");
+    if (index + 1 < state.items.length) {
+      state.focus = { index: index + 1, field };
+      state.buffer = String(
+        field === "in" ? state.items[index + 1].inQty : state.items[index + 1].outQty || ""
+      );
     } else {
       state.focus = null;
       state.buffer = "";
