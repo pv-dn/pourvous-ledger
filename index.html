@@ -83,6 +83,8 @@ select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;borde
 .qty-cell.out-col{border-color:#d4c4f0;background:#faf7ff}
 .qty-cell.active-in{border-color:#2d6a4f;background:#e8f5ec}
 .qty-cell.active-out{border-color:#5b4b8a;background:#f0ebff}
+.qty-cell.mismatch{color:#c62828;border-color:#e57373;background:#ffebee}
+.qty-cell.mismatch.active-out{color:#c62828;border-color:#c62828;background:#ffcdd2}
 .list-head{display:grid;grid-template-columns:minmax(0,1fr) auto auto minmax(0,1fr);align-items:center;gap:calc(10px * var(--iz));width:100%;box-sizing:border-box;padding:0 calc(5px * var(--iz)) calc(3px * var(--iz));font-size:calc(13px * var(--iz));font-weight:700;color:#888;text-align:center;line-height:1.2}
 .list-head span:first-child{text-align:left;padding-left:0;min-width:0}
 .list-head span:not(:first-child){width:calc(72px * var(--iz))}
@@ -1336,10 +1338,17 @@ function renderInputTab() {
          const outActive = state.focus?.index === i && state.focus.field === "out";
          const inDisp = inActive ? (state.buffer || "0") : (it.inQty !== "" ? it.inQty : "—");
          const outDisp = outActive ? (state.buffer || "0") : (it.outQty !== "" ? it.outQty : "—");
+         const inNum = inActive
+           ? (state.buffer === "" ? null : (parseInt(state.buffer, 10) || 0))
+           : (it.inQty === "" ? null : (parseInt(it.inQty, 10) || 0));
+         const outNum = outActive
+           ? (state.buffer === "" ? null : (parseInt(state.buffer, 10) || 0))
+           : (it.outQty === "" ? null : (parseInt(it.outQty, 10) || 0));
+         const outMismatch = inNum !== null && outNum !== null && inNum !== outNum;
          return `<div class="item-row${inActive || outActive ? " active" : ""}">
            <div class="item-main"><span class="item-name">${esc(it.name)}</span>${it.code ? `<span class="item-code">${esc(it.code)}</span>` : ""}</div>
            <div class="qty-cell in-col${inActive ? " active-in" : ""}${it.inQty === "" && !inActive ? " empty" : ""}" data-i="${i}" data-f="in">${esc(String(inDisp))}</div>
-           <div class="qty-cell out-col${outActive ? " active-out" : ""}${it.outQty === "" && !outActive ? " empty" : ""}" data-i="${i}" data-f="out">${esc(String(outDisp))}</div>
+           <div class="qty-cell out-col${outActive ? " active-out" : ""}${it.outQty === "" && !outActive ? " empty" : ""}${outMismatch ? " mismatch" : ""}" data-i="${i}" data-f="out">${esc(String(outDisp))}</div>
          </div>`;
        }).join("")}</div>`;
 
