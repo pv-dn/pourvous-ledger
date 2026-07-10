@@ -202,8 +202,10 @@ const SESSION_DAY_KEY = "lg_sessionDay";
 const HISTORY_MONTHS = 2;
 const MASTER_CUST_KEY = "lg_master_customers";
 const MASTER_ITEMS_KEY = "lg_master_items";
+const MASTER_GROUP_KEY = "lg_master_groups";
 const MASTER_CUST_KEY_DEMO = "lg_master_customers_demo";
 const MASTER_ITEMS_KEY_DEMO = "lg_master_items_demo";
+const MASTER_GROUP_KEY_DEMO = "lg_master_groups_demo";
 
 function sessionDayKey() {
   return todayInput();
@@ -298,28 +300,60 @@ function customerGroupName(c) {
   return (c?.group || "").trim() || UNGROUPED_LABEL;
 }
 
-function existingCustomerGroups() {
-  const set = new Set();
+function normalizeGroupOrder(list) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of Array.isArray(list) ? list : []) {
+    const name = String(raw || "").trim();
+    if (!name || name === UNGROUPED_LABEL || seen.has(name)) continue;
+    seen.add(name);
+    out.push(name);
+  }
+  return out;
+}
+
+function syncGroupOrderFromCustomers() {
+  const found = new Set();
   for (const c of state.customers) {
     const g = (c.group || "").trim();
-    if (g) set.add(g);
+    if (g) found.add(g);
   }
-  return [...set].sort((a, b) => a.localeCompare(b, "ja"));
+  const next = normalizeGroupOrder(state.groupOrder);
+  for (const g of found) {
+    if (!next.includes(g)) next.push(g);
+  }
+  state.groupOrder = next;
+}
+
+function managedGroups() {
+  syncGroupOrderFromCustomers();
+  return state.groupOrder.map(name => ({
+    name,
+    count: state.customers.filter(c => (c.group || "").trim() === name).length
+  }));
+}
+
+function existingCustomerGroups() {
+  return managedGroups().map(g => g.name);
 }
 
 function customersGrouped() {
+  syncGroupOrderFromCustomers();
   const map = new Map();
   for (const c of state.customers) {
     const g = customerGroupName(c);
     if (!map.has(g)) map.set(g, []);
     map.get(g).push(c);
   }
-  const keys = [...map.keys()].sort((a, b) => {
-    if (a === UNGROUPED_LABEL) return 1;
-    if (b === UNGROUPED_LABEL) return -1;
-    return a.localeCompare(b, "ja");
-  });
-  return keys.map(group => ({ group, customers: map.get(group) }));
+  const keys = [];
+  for (const g of state.groupOrder) {
+    if (map.has(g)) keys.push(g);
+  }
+  for (const g of map.keys()) {
+    if (g !== UNGROUPED_LABEL && !keys.includes(g)) keys.push(g);
+  }
+  if (map.has(UNGROUPED_LABEL)) keys.push(UNGROUPED_LABEL);
+  return keys.map(group => ({ group, customers: map.get(group) || [] }));
 }
 
 function renderCustomerSelectOptions(selected = "") {
@@ -372,6 +406,59 @@ async function sortCustomersByName() {
   } catch (e) {
     console.error(e);
     toast("並び替えに失敗しました", "error");
+  }
+}
+
+function openMasterGroupForm(mode, name = "") {
+  if (!canMasterFullEdit()) {
+    toast("グループの編集はPCから行ってください", "error");
+    return;
+  }
+  state.masterForm = {
+    kind: "group",
+    mode,
+    name,
+    oldName: mode === "edit" ? name : ""
+  };
+  render();
+}
+
+async function moveGroup(name, dir) {
+  if (!canMasterFullEdit()) return;
+  syncGroupOrderFromCustomers();
+  const i = state.groupOrder.indexOf(name);
+  if (i < 0) return;
+  const j = i + dir;
+  if (j < 0 || j >= state.groupOrder.length) return;
+  const item = state.groupOrder.splice(i, 1)[0];
+  state.groupOrder.splice(j, 0, item);
+  try {
+    await persistLedgerMaster();
+    render();
+  } catch (e) {
+    console.error(e);
+    toast("並び替えに失敗しました", "error");
+  }
+}
+
+async function deleteMasterGroup(name) {
+  if (!canMasterFullEdit()) return;
+  const count = state.customers.filter(c => (c.group || "").trim() === name).length;
+  const msg = count
+    ? `グループ「${name}」を削除しますか？\n所属する客先 ${count} 件は「未分類」になります。`
+    : `グループ「${name}」を削除しますか？`;
+  if (!confirm(msg)) return;
+  state.customers = state.customers.map(c =>
+    (c.group || "").trim() === name ? { ...c, group: "" } : c
+  );
+  state.groupOrder = state.groupOrder.filter(g => g !== name);
+  try {
+    await persistLedgerMaster();
+    toast("グループを削除しました");
+    render();
+  } catch (e) {
+    console.error(e);
+    toast("削除に失敗しました", "error");
   }
 }
 
@@ -595,7 +682,8 @@ const state = {
   zoomBeforeFit: null,
   masterSection: "customers",
   masterCustomer: "",
-  masterForm: null
+  masterForm: null,
+  groupOrder: [],
 };
 
 function isActiveSession() {
@@ -763,21 +851,28 @@ async function fsSaveLedger(key, data) {
 function cacheLedgerMaster() {
   const custKey = state.demoMode ? MASTER_CUST_KEY_DEMO : MASTER_CUST_KEY;
   const itemsKey = state.demoMode ? MASTER_ITEMS_KEY_DEMO : MASTER_ITEMS_KEY;
+  const groupKey = state.demoMode ? MASTER_GROUP_KEY_DEMO : MASTER_GROUP_KEY;
   try {
     localStorage.setItem(custKey, JSON.stringify(state.customers));
     localStorage.setItem(itemsKey, JSON.stringify(state.prices));
+    localStorage.setItem(groupKey, JSON.stringify(state.groupOrder));
   } catch {}
 }
 
 function loadLedgerMasterFromCache() {
   const custKey = state.demoMode ? MASTER_CUST_KEY_DEMO : MASTER_CUST_KEY;
   const itemsKey = state.demoMode ? MASTER_ITEMS_KEY_DEMO : MASTER_ITEMS_KEY;
+  const groupKey = state.demoMode ? MASTER_GROUP_KEY_DEMO : MASTER_GROUP_KEY;
   try {
     const cust = localStorage.getItem(custKey);
     const items = localStorage.getItem(itemsKey);
     if (cust && items) {
       state.customers = JSON.parse(cust).map(normalizeCustomer).filter(c => c.name);
       state.prices = normalizeMasterItems(JSON.parse(items));
+      try {
+        state.groupOrder = normalizeGroupOrder(JSON.parse(localStorage.getItem(groupKey) || "[]"));
+      } catch { state.groupOrder = []; }
+      syncGroupOrderFromCustomers();
       return true;
     }
   } catch {}
@@ -812,30 +907,38 @@ async function loadLedgerMaster() {
     if (!loadLedgerMasterFromCache()) {
       state.customers = DEMO_CUSTOMERS.map(c => ({ ...c }));
       state.prices = DEMO_PRICES.map(p => ({ ...p }));
+      state.groupOrder = ["法人", "飲食", "医療"];
     }
+    syncGroupOrderFromCustomers();
     return;
   }
   let customers = await fsLoadLedger("customers");
   let items = await fsLoadLedger("items");
+  let groups = await fsLoadLedger("groupOrder");
   const hasMaster = (Array.isArray(customers) && customers.length) || (Array.isArray(items) && items.length);
   if (!hasMaster) {
     if (loadLedgerMasterFromCache()) return;
     await importInvoiceMasterIfEmpty();
+    syncGroupOrderFromCustomers();
     return;
   }
   state.customers = Array.isArray(customers) ? customers.map(normalizeCustomer).filter(c => c.name) : [];
   state.prices = normalizeMasterItems(items);
+  state.groupOrder = normalizeGroupOrder(groups);
+  syncGroupOrderFromCustomers();
   cacheLedgerMaster();
 }
 
 async function persistLedgerMaster() {
   state.customers = state.customers.map(c => normalizeCustomer(c)).filter(c => c.name);
   state.prices = normalizeMasterItems(state.prices);
+  syncGroupOrderFromCustomers();
   cacheLedgerMaster();
   if (state.demoMode) return;
   await Promise.all([
     fsSaveLedger("customers", state.customers),
-    fsSaveLedger("items", state.prices)
+    fsSaveLedger("items", state.prices),
+    fsSaveLedger("groupOrder", state.groupOrder)
   ]);
 }
 
@@ -885,8 +988,8 @@ function openMasterItemForm(mode, customer, index = -1) {
 async function submitMasterForm() {
   const f = state.masterForm;
   if (!f) return;
-  if (f.kind === "customer" && !canMasterFullEdit()) {
-    toast("客先の編集はPCから行ってください", "error");
+  if ((f.kind === "customer" || f.kind === "group") && !canMasterFullEdit()) {
+    toast("編集はPCから行ってください", "error");
     return;
   }
   if (f.kind === "item" && f.mode === "edit" && !canMasterFullEdit()) {
@@ -897,17 +1000,33 @@ async function submitMasterForm() {
   const code = (document.getElementById("master-form-code")?.value || "").trim();
   const group = (document.getElementById("master-form-group")?.value || "").trim();
   try {
-    if (f.kind === "customer") {
+    if (f.kind === "group") {
+      if (!name) { toast("グループ名を入力してください", "error"); return; }
+      if (name === UNGROUPED_LABEL) { toast("このグループ名は使えません", "error"); return; }
+      syncGroupOrderFromCustomers();
+      if (f.mode === "add") {
+        if (state.groupOrder.includes(name)) { toast("同じグループがあります", "error"); return; }
+        state.groupOrder.push(name);
+      } else {
+        if (name !== f.oldName && state.groupOrder.includes(name)) { toast("同じグループがあります", "error"); return; }
+        state.customers = state.customers.map(c =>
+          (c.group || "").trim() === f.oldName ? normalizeCustomer({ ...c, group: name }) : c
+        );
+        state.groupOrder = state.groupOrder.map(g => g === f.oldName ? name : g);
+      }
+    } else if (f.kind === "customer") {
       if (!name) { toast("客先名を入力してください", "error"); return; }
       if (f.mode === "add") {
         if (state.customers.some(c => c.name === name)) { toast("同じ客先があります", "error"); return; }
         state.customers.push(normalizeCustomer({ id: nextCustomerId(), name, group }));
+        if (group && !state.groupOrder.includes(group)) state.groupOrder.push(group);
         if (!state.masterCustomer) state.masterCustomer = name;
       } else {
         if (name !== f.oldName && state.customers.some(c => c.name === name)) { toast("同じ客先があります", "error"); return; }
         state.customers = state.customers.map(c =>
           c.name === f.oldName ? normalizeCustomer({ ...c, name, group }) : c
         );
+        if (group && !state.groupOrder.includes(group)) state.groupOrder.push(group);
         state.prices = state.prices.map(p => p.customer === f.oldName ? { ...p, customer: name } : p);
         if (state.customer === f.oldName) {
           state.customer = name;
@@ -1272,6 +1391,8 @@ function renderMasterTab() {
   const fullEdit = canMasterFullEdit();
   const section = fullEdit ? state.masterSection : "items";
   const customerSection = section === "customers";
+  const groupSection = section === "groups";
+  const itemSection = section === "items";
   const grouped = customersGrouped();
   const custRows = grouped.map(({ group, customers }) => {
     const rows = customers.map((c, gi) => {
@@ -1298,6 +1419,21 @@ function renderMasterTab() {
     </div>`;
   }).join("");
 
+  const groups = managedGroups();
+  const groupRows = groups.map((g, i) => `
+    <div class="master-row">
+      <div class="master-row-body">
+        <div class="master-row-title">${esc(g.name)}</div>
+        <div class="master-row-meta">客先 ${g.count} 件</div>
+      </div>
+      <div class="master-row-actions">
+        <button type="button" class="master-btn master-btn-move" data-group-move="${esc(g.name)}" data-dir="-1" ${i > 0 ? "" : "disabled"} aria-label="上へ">↑</button>
+        <button type="button" class="master-btn master-btn-move" data-group-move="${esc(g.name)}" data-dir="1" ${i < groups.length - 1 ? "" : "disabled"} aria-label="下へ">↓</button>
+        <button type="button" class="master-btn master-btn-edit" data-group-edit="${esc(g.name)}">編集</button>
+        <button type="button" class="master-btn master-btn-del" data-group-del="${esc(g.name)}">削除</button>
+      </div>
+    </div>`).join("");
+
   const masterCust = state.masterCustomer || state.customers[0]?.name || "";
   const itemRows = masterCust ? customerItemRows(masterCust).map((p, i) => `
     <div class="master-row">
@@ -1314,35 +1450,64 @@ function renderMasterTab() {
   const custOpts = renderCustomerSelectOptions(masterCust);
 
   const note = fullEdit
-    ? "客先はグループ分け・並べ替えできます。伝票アプリのマスタは変更しません。"
-    : "スマホでは品目の追加のみ可能です。客先の登録・編集・削除はPCから行ってください。";
+    ? "客先・グループ・品目を管理できます。伝票アプリのマスタは変更しません。"
+    : "スマホでは品目の追加のみ可能です。客先・グループの編集はPCから行ってください。";
+
+  let body = "";
+  if (customerSection) {
+    body = `
+      <div class="master-toolbar-actions">
+        <button type="button" class="master-add" id="master-add-customer">＋ 客先を追加</button>
+        <button type="button" class="btn" id="master-sort-customers">名前順に並べ替え</button>
+      </div>
+      <div class="master-list">${custRows || `<div class="empty" style="padding:24px">客先がありません</div>`}</div>`;
+  } else if (groupSection) {
+    body = `
+      <p class="sync-note" style="margin:0 0 10px">グループの追加・改名・並べ替え・削除ができます。削除すると所属客先は未分類になります。</p>
+      <div class="master-toolbar-actions">
+        <button type="button" class="master-add" id="master-add-group">＋ グループを追加</button>
+      </div>
+      <div class="master-list">${groupRows || `<div class="empty" style="padding:24px">グループがありません</div>`}</div>`;
+  } else {
+    body = `
+      <div class="master-toolbar">
+        <select id="master-cust-select">${state.customers.length ? custOpts : `<option value="">客先がありません</option>`}</select>
+      </div>
+      <button type="button" class="master-add" id="master-add-item" ${state.customers.length ? "" : "disabled"}>＋ 品目を追加</button>
+      <div class="master-list" style="margin-top:10px">${itemRows || `<div class="empty" style="padding:24px">${masterCust ? "品目がありません" : "客先を登録してください"}</div>`}</div>`;
+  }
 
   return `
     <div class="card" style="margin-bottom:12px">
       <p class="sync-note" style="margin:0 0 10px">${note}</p>
       ${fullEdit ? `<div class="master-subtabs">
         <button type="button" class="master-subtab${customerSection ? " active" : ""}" data-master-section="customers">客先</button>
-        <button type="button" class="master-subtab${!customerSection ? " active" : ""}" data-master-section="items">品目</button>
+        <button type="button" class="master-subtab${groupSection ? " active" : ""}" data-master-section="groups">グループ</button>
+        <button type="button" class="master-subtab${itemSection ? " active" : ""}" data-master-section="items">品目</button>
       </div>` : ""}
-      ${customerSection ? `
-        <div class="master-toolbar-actions">
-          <button type="button" class="master-add" id="master-add-customer">＋ 客先を追加</button>
-          <button type="button" class="btn" id="master-sort-customers">名前順に並べ替え</button>
-        </div>
-        <div class="master-list">${custRows || `<div class="empty" style="padding:24px">客先がありません</div>`}</div>
-      ` : `
-        <div class="master-toolbar">
-          <select id="master-cust-select">${state.customers.length ? custOpts : `<option value="">客先がありません</option>`}</select>
-        </div>
-        <button type="button" class="master-add" id="master-add-item" ${state.customers.length ? "" : "disabled"}>＋ 品目を追加</button>
-        <div class="master-list" style="margin-top:10px">${itemRows || `<div class="empty" style="padding:24px">${masterCust ? "品目がありません" : "客先を登録してください"}</div>`}</div>
-      `}
+      ${body}
     </div>`;
 }
 
 function renderMasterForm() {
   const f = state.masterForm;
   if (!f) return "";
+  if (f.kind === "group") {
+    const title = f.mode === "add" ? "グループを追加" : "グループを編集";
+    return `
+    <div class="detail-overlay" id="master-form-overlay">
+      <div class="master-form-panel">
+        <h3>${title}</h3>
+        <label class="lbl">グループ名</label>
+        <input type="text" id="master-form-name" value="${esc(f.name)}" placeholder="例：医療 / 飲食 / 法人">
+        <p style="font-size:11px;color:#888;margin:-4px 0 10px">名前を変えると、所属する客先もまとめて更新されます</p>
+        <div class="master-form-actions">
+          <button type="button" class="btn btn-ghost" id="master-form-cancel" style="background:#f4f3ef;color:#1a1a2e">キャンセル</button>
+          <button type="button" class="btn btn-primary" id="master-form-save">保存</button>
+        </div>
+      </div>
+    </div>`;
+  }
   const isCustomer = f.kind === "customer";
   const title = isCustomer
     ? (f.mode === "add" ? "客先を追加" : "客先を編集")
@@ -1360,7 +1525,7 @@ function renderMasterForm() {
         ${isCustomer ? `<label class="lbl">グループ（任意）</label>
         <input type="text" id="master-form-group" list="master-group-list" value="${esc(f.group || "")}" placeholder="例：医療 / 飲食 / 法人">
         <datalist id="master-group-list">${groupOpts}</datalist>
-        <p style="font-size:11px;color:#888;margin:-4px 0 10px">同じグループ名の客先がまとめて表示されます</p>` : ""}
+        <p style="font-size:11px;color:#888;margin:-4px 0 10px">グループタブで追加・改名もできます</p>` : ""}
         ${!isCustomer ? `<label class="lbl">コード（任意）</label><input type="text" id="master-form-code" value="${esc(f.code)}" placeholder="例：U001">` : ""}
         <div class="master-form-actions">
           <button type="button" class="btn btn-ghost" id="master-form-cancel" style="background:#f4f3ef;color:#1a1a2e">キャンセル</button>
@@ -1559,6 +1724,17 @@ function render() {
     });
     document.querySelectorAll("[data-master-move]").forEach(btn => {
       btn.onclick = () => moveCustomer(btn.dataset.masterMove, +btn.dataset.dir);
+    });
+    const addGroup = document.getElementById("master-add-group");
+    if (addGroup) addGroup.onclick = () => openMasterGroupForm("add");
+    document.querySelectorAll("[data-group-edit]").forEach(btn => {
+      btn.onclick = () => openMasterGroupForm("edit", btn.dataset.groupEdit);
+    });
+    document.querySelectorAll("[data-group-del]").forEach(btn => {
+      btn.onclick = () => deleteMasterGroup(btn.dataset.groupDel);
+    });
+    document.querySelectorAll("[data-group-move]").forEach(btn => {
+      btn.onclick = () => moveGroup(btn.dataset.groupMove, +btn.dataset.dir);
     });
     const masterSel = document.getElementById("master-cust-select");
     if (masterSel) masterSel.onchange = e => {
