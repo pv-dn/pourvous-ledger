@@ -15,15 +15,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html{font-size:18px;height:100%}
+html{font-size:calc(16px * var(--ui-scale, 1));height:100%}
 body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;color:#1a1a2e;height:100%;overflow:hidden}
 #root{height:100%}
 .hidden{display:none!important}
-.app{max-width:1100px;width:100%;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden}
-.header{background:#1a1a2e;color:#e8d5b7;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:30}
-.header h1{font-size:17px;font-weight:700}
-.header-sub{font-size:11px;opacity:.75;margin-top:2px}
-.header-actions{display:flex;gap:8px;align-items:center}
+.app{max-width:none;width:100%;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden}
+.header{background:#1a1a2e;color:#e8d5b7;padding:calc(10px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:30}
+.header h1{font-size:calc(16px * var(--ui-scale, 1));font-weight:700}
+.header-sub{font-size:calc(11px * var(--ui-scale, 1));opacity:.75;margin-top:2px}
+.header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .zoom-controls{display:flex;align-items:center;gap:2px}
 .btn-zoom{min-width:34px;padding:5px 8px;font-size:18px;line-height:1;font-weight:700}
 .btn-fit{min-width:auto;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap}
@@ -37,17 +37,17 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 .btn-primary:disabled{opacity:.45;cursor:not-allowed}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .tabs{display:flex;background:#fff;border-bottom:1px solid #e0ddd5;flex-shrink:0}
-.tab{flex:1;padding:12px;border:none;background:none;font-size:14px;font-weight:600;color:#888;cursor:pointer;font-family:inherit;border-bottom:3px solid transparent}
+.tab{flex:1;padding:calc(10px * var(--ui-scale, 1));border:none;background:none;font-size:calc(13px * var(--ui-scale, 1));font-weight:600;color:#888;cursor:pointer;font-family:inherit;border-bottom:3px solid transparent}
 .tab.active{color:#1a1a2e;border-bottom-color:#1a1a2e}
 .workspace{display:flex;flex:1;min-height:0;overflow:hidden}
-.main{flex:1;min-width:0;min-height:0;padding:12px;display:flex;flex-direction:column;overflow:hidden}
+.main{flex:1;min-width:0;min-height:0;padding:calc(10px * var(--ui-scale, 1));display:flex;flex-direction:column;overflow:hidden}
 .main-scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .input-layout{display:flex;flex-direction:column;flex:1;min-height:0}
 .input-fixed{flex-shrink:0;margin-bottom:8px}
 .items-scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:10px}
 .scroll-btn{border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a2e;font-size:12px;font-weight:700;padding:4px;cursor:pointer;font-family:inherit;flex-shrink:0}
 .scroll-btn:active{background:#f4f3ef}
-.card{background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:14px;margin-bottom:12px}
+.card{background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:calc(12px * var(--ui-scale, 1));margin-bottom:12px}
 .items-scroll.card{margin-bottom:0;padding:4px 6px 2px}
 .lbl{font-size:12px;color:#666;font-weight:600;margin-bottom:6px;display:block}
 select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:15px;font-family:inherit;background:#fff}
@@ -69,24 +69,30 @@ select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;borde
 .qty-cell.active-out{border-color:#5b4b8a;background:#f0ebff}
 .list-head{display:grid;grid-template-columns:1fr calc(72px * var(--iz)) calc(72px * var(--iz));gap:calc(4px * var(--iz));padding:0 calc(5px * var(--iz)) calc(3px * var(--iz));font-size:calc(13px * var(--iz));font-weight:700;color:#888;text-align:center;line-height:1.2}
 .list-head span:first-child{text-align:left;padding-left:0}
-.numpad-wrap{width:280px;flex-shrink:0;background:#fff;border-left:2px solid #1a1a2e;padding:12px 14px;display:flex;flex-direction:column;justify-content:flex-start;gap:10px;align-self:stretch;overflow:hidden}
+.numpad-wrap{width:var(--numpad-w, 280px);flex-shrink:0;background:#fff;border-left:2px solid #1a1a2e;padding:calc(10px * var(--ui-scale, 1)) calc(12px * var(--ui-scale, 1));display:flex;flex-direction:column;justify-content:flex-start;gap:calc(8px * var(--ui-scale, 1));align-self:stretch;overflow:hidden}
 .sidebar-actions{display:flex;flex-direction:column;gap:8px;flex-shrink:0}
-.sidebar-actions .btn{width:100%;padding:12px;font-size:13px}
+.sidebar-actions .btn{width:100%;padding:calc(11px * var(--ui-scale, 1));font-size:calc(13px * var(--ui-scale, 1))}
 .btn-memo{background:#f0ebff;color:#5b4b8a;border:none}
-.numpad-target{font-size:13px;color:#666;text-align:center;line-height:1.5;min-height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.numpad-target{font-size:calc(12px * var(--ui-scale, 1));color:#666;text-align:center;line-height:1.5;min-height:calc(32px * var(--ui-scale, 1));display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .numpad-target strong{color:#1a1a2e}
-.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(7px * var(--ui-scale, 1))}
 .numpad-wrap.disabled .nk{opacity:.45}
 .numpad-wrap.disabled .nk:active{background:#f4f3ef}
-.nk{border:none;border-radius:10px;padding:18px 0;font-size:24px;font-weight:700;cursor:pointer;font-family:inherit;background:#f4f3ef;color:#1a1a2e}
+.nk{border:none;border-radius:10px;padding:calc(14px * var(--ui-scale, 1)) 0;font-size:calc(22px * var(--ui-scale, 1));font-weight:700;cursor:pointer;font-family:inherit;background:#f4f3ef;color:#1a1a2e}
 .nk:active{background:#e0ddd5}
 .nk.del{background:#fff3e0;color:#c62828}
 .nk.enter{background:#1a1a2e;color:#e8d5b7;grid-column:span 2}
-@media (max-width:767px){
+/* 縦置きのときだけテンキーを下へ。横置きは常に左右分割 */
+@media (max-width:900px) and (orientation: portrait){
   .workspace{flex-direction:column}
   .main{flex:1;min-height:0}
   .numpad-wrap{width:100%;flex-shrink:0;border-left:none;border-top:2px solid #1a1a2e;padding:12px;align-self:auto}
   .nk{padding:14px 0;font-size:20px}
+}
+@media (orientation: landscape){
+  .app{max-width:none}
+  .input-fixed{margin-bottom:6px}
+  .sync-note{display:none}
 }
 .history-list{display:flex;flex-direction:column;gap:8px}
 .history-table{width:100%;border-collapse:collapse;font-size:14px;background:#fff;border:1px solid #e8e6e0;border-radius:10px;overflow:hidden}
@@ -393,12 +399,46 @@ function toggleFitAll() {
   else enterFitAll();
 }
 
+function isLandscape() {
+  return window.matchMedia("(orientation: landscape)").matches || window.innerWidth > window.innerHeight;
+}
+
+function applyDeviceLayout() {
+  const w = window.innerWidth || 1;
+  const h = window.innerHeight || 1;
+  const shortSide = Math.min(w, h);
+  const longSide = Math.max(w, h);
+  // 基準: 横置きタブレット短辺 800px 前後を 1.0
+  let scale = shortSide / 800;
+  scale = Math.max(0.82, Math.min(1.15, Math.round(scale * 100) / 100));
+  let numpadW = Math.round(Math.min(320, Math.max(220, longSide * 0.22)));
+  if (!isLandscape()) numpadW = Math.min(w, 360);
+  document.documentElement.style.setProperty("--ui-scale", String(scale));
+  document.documentElement.style.setProperty("--numpad-w", `${numpadW}px`);
+}
+
+function maybeAutoFitForDevice() {
+  if (!isLandscape() || state.tab !== 0 || !state.items.length) return;
+  if (!state.fitAllMode) {
+    state.zoomBeforeFit = state.itemZoom;
+    state.fitAllMode = true;
+  }
+}
+
 let fitResizeTimer = null;
 window.addEventListener("resize", () => {
+  applyDeviceLayout();
   if (!state.fitAllMode || state.tab !== 0) return;
   clearTimeout(fitResizeTimer);
   fitResizeTimer = setTimeout(() => applyFitAllZoom(), 150);
 });
+window.addEventListener("orientationchange", () => {
+  applyDeviceLayout();
+  setTimeout(() => {
+    if (state.fitAllMode && state.tab === 0) applyFitAllZoom();
+  }, 250);
+});
+applyDeviceLayout();
 
 const state = {
   tab: 0,
@@ -850,6 +890,7 @@ function selectCustomer(name) {
     return;
   }
   loadCustomerItems(name);
+  maybeAutoFitForDevice();
   render();
 }
 
@@ -1182,6 +1223,7 @@ function esc(s) {
 
 function render() {
   if (!isActiveSession()) return;
+  applyDeviceLayout();
   const showNumpad = state.tab === 0;
   const focusLabel = state.focus
     ? `${state.items[state.focus.index]?.name || ""} の「${state.focus.field === "in" ? "入" : "出"}」`

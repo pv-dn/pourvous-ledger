@@ -6,7 +6,7 @@
   "start_url": "/pourvous-ledger/index.html",
   "scope": "/pourvous-ledger/",
   "display": "standalone",
-  "orientation": "any",
+  "orientation": "landscape",
   "background_color": "#f4f3ef",
   "theme_color": "#1a1a2e",
   "lang": "ja",
