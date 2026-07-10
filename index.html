@@ -20,10 +20,14 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 #root{height:100%}
 .hidden{display:none!important}
 .app{max-width:none;width:100%;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden}
-.header{background:#1a1a2e;color:#e8d5b7;padding:calc(10px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));display:flex;align-items:center;justify-content:space-between;flex-shrink:0;z-index:30}
+.header{background:#1a1a2e;color:#e8d5b7;padding:calc(8px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;z-index:30}
+.header-brand{flex-shrink:0;min-width:0}
 .header h1{font-size:calc(16px * var(--ui-scale, 1));font-weight:700}
 .header-sub{font-size:calc(11px * var(--ui-scale, 1));opacity:.75;margin-top:2px}
-.header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.header-tabs{display:flex;align-items:center;gap:4px;flex:1;min-width:0;justify-content:center}
+.header-tab{border:none;border-radius:8px;padding:calc(8px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));background:rgba(255,255,255,.08);color:#c8c0b0;font-size:calc(13px * var(--ui-scale, 1));font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.header-tab.active{background:#e8d5b7;color:#1a1a2e}
+.header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0}
 .zoom-controls{display:flex;align-items:center;gap:2px}
 .btn-zoom{min-width:34px;padding:5px 8px;font-size:18px;line-height:1;font-weight:700}
 .btn-fit{min-width:auto;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap}
@@ -51,9 +55,6 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 .btn-primary{background:#e8d5b7;color:#1a1a2e}
 .btn-primary:disabled{opacity:.45;cursor:not-allowed}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.tabs{display:flex;background:#fff;border-bottom:1px solid #e0ddd5;flex-shrink:0}
-.tab{flex:1;padding:calc(10px * var(--ui-scale, 1));border:none;background:none;font-size:calc(13px * var(--ui-scale, 1));font-weight:600;color:#888;cursor:pointer;font-family:inherit;border-bottom:3px solid transparent}
-.tab.active{color:#1a1a2e;border-bottom-color:#1a1a2e}
 .workspace{display:flex;flex:1;min-height:0;overflow:hidden}
 .main{flex:1;min-width:0;min-height:0;padding:calc(10px * var(--ui-scale, 1));display:flex;flex-direction:column;overflow:hidden}
 .main-scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -1572,7 +1573,12 @@ function render() {
   document.getElementById("root").innerHTML = `
     <div class="app">
       <header class="header">
-        <div><h1>入出荷台帳</h1><div class="header-sub">${esc(sessionLabel())}</div></div>
+        <div class="header-brand"><h1>入出荷台帳</h1><div class="header-sub">${esc(sessionLabel())}</div></div>
+        <nav class="header-tabs" aria-label="画面切替">
+          <button type="button" class="header-tab${state.tab === 0 ? " active" : ""}" data-tab="0">入力</button>
+          <button type="button" class="header-tab${state.tab === 1 ? " active" : ""}" data-tab="1">履歴${state.ledgers.length ? ` (${state.ledgers.length})` : ""}</button>
+          <button type="button" class="header-tab${state.tab === 2 ? " active" : ""}" data-tab="2">マスタ</button>
+        </nav>
         <div class="header-actions">
           <div class="zoom-controls${state.tab === 0 ? "" : " hidden"}">
             <button type="button" class="btn btn-ghost btn-zoom btn-fit" id="btn-fit-all">${state.fitAllMode ? "解除" : "全体表示"}</button>
@@ -1584,11 +1590,6 @@ function render() {
           ${SKIP_LOGIN && state.demoMode ? "" : `<button class="btn btn-ghost" id="btn-logout">${state.demoMode ? "終了" : "業務終了"}</button>`}
         </div>
       </header>
-      <div class="tabs">
-        <button class="tab${state.tab === 0 ? " active" : ""}" data-tab="0">入力</button>
-        <button class="tab${state.tab === 1 ? " active" : ""}" data-tab="1">履歴 ${state.ledgers.length ? `(${state.ledgers.length})` : ""}</button>
-        <button class="tab${state.tab === 2 ? " active" : ""}" data-tab="2">マスタ</button>
-      </div>
       <div class="workspace">
         <main class="main">
           ${state.loading ? `<div class="empty">読込中…</div>` : state.tab === 0 ? renderInputTab() : `<div class="main-scroll">${state.tab === 1 ? renderHistoryTab() : renderMasterTab()}</div>`}
@@ -1612,7 +1613,7 @@ function render() {
     ${state.invoiceMemo ? renderInvoiceMemo(state.invoiceMemo) : ""}
     ${state.masterForm ? renderMasterForm() : ""}`;
 
-  document.querySelectorAll(".tab").forEach(btn => {
+  document.querySelectorAll(".header-tab").forEach(btn => {
     btn.onclick = async () => {
       state.tab = +btn.dataset.tab;
       state.focus = null;
