@@ -204,6 +204,8 @@ async function endWorkDay() {
 }
 
 const IS_LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+/** 運用開始まで true（ログイン省略・端末内保存）。本番ログイン必須にするときは false に戻す */
+const SKIP_LOGIN = true;
 const IS_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 const IS_STANDALONE = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
 const IS_PHONE = /iPhone|iPod|Android.*Mobile/i.test(navigator.userAgent);
@@ -469,7 +471,11 @@ function isActiveSession() {
 }
 
 function sessionLabel() {
-  if (state.demoMode) return "試用モード（ログイン省略）";
+  if (state.demoMode) {
+    return SKIP_LOGIN && !IS_LOCAL
+      ? "仮運用（ログイン省略・この端末のみ）"
+      : "試用モード（ログイン省略）";
+  }
   const name = state.userDisplayName || state.userShortId;
   return name ? `本日ログイン済み · ${name}` : "本日ログイン済み";
 }
@@ -971,7 +977,9 @@ async function saveLedger() {
       await pruneOldLedgersFromCloud();
       cacheLedgers();
     }
-    toast(state.demoMode ? "台帳を保存しました（試用・この端末のみ）" : "台帳を保存しました");
+    toast(state.demoMode
+      ? (SKIP_LOGIN && !IS_LOCAL ? "台帳を保存しました（仮運用・この端末のみ）" : "台帳を保存しました（試用・この端末のみ）")
+      : "台帳を保存しました");
     state.items = state.items.map(it => ({ ...it, inQty: "", outQty: "" }));
     state.focus = null;
     state.buffer = "";
@@ -1082,7 +1090,9 @@ function renderInputTab() {
           <div><label class="lbl">納品日</label>
             <input type="date" id="delivery-date" value="${state.deliveryDate || todayInput()}"></div>
         </div>
-        <p class="sync-note">${state.demoMode ? "試用モード：この端末のマスタを使用" : "台帳アプリのマスタ（全端末で共有）"}</p>
+        <p class="sync-note">${state.demoMode
+          ? (SKIP_LOGIN && !IS_LOCAL ? "仮運用：この端末のマスタ・履歴のみ（運用開始後にログイン必須へ切替）" : "試用モード：この端末のマスタを使用")
+          : "台帳アプリのマスタ（全端末で共有）"}</p>
       </div>
       <div class="items-panel${state.fitAllMode ? " fit-all" : ""}" style="--iz:${state.itemZoom}">
         <button type="button" class="scroll-btn" id="scroll-up" aria-label="上へスクロール">▲ 上へ</button>
@@ -1244,7 +1254,7 @@ function render() {
             <button type="button" class="btn btn-ghost btn-zoom" id="btn-zoom-in" aria-label="品目を拡大" ${state.itemZoom >= ZOOM_MAX || state.fitAllMode ? "disabled" : ""}>＋</button>
           </div>
           <button type="button" class="btn btn-ghost install-btn hidden" id="btn-install">インストール</button>
-          <button class="btn btn-ghost" id="btn-logout">${state.demoMode ? "終了" : "業務終了"}</button>
+          ${SKIP_LOGIN && state.demoMode ? "" : `<button class="btn btn-ghost" id="btn-logout">${state.demoMode ? "終了" : "業務終了"}</button>`}
         </div>
       </header>
       <div class="tabs">
@@ -1290,16 +1300,19 @@ function render() {
       render();
     };
   });
-  document.getElementById("btn-logout").onclick = async () => {
-    if (state.demoMode) {
-      state.demoMode = false;
-      state.customer = "";
-      state.items = [];
-      renderLogin();
-    } else {
-      await endWorkDay();
-    }
-  };
+  const logoutBtn = document.getElementById("btn-logout");
+  if (logoutBtn) {
+    logoutBtn.onclick = async () => {
+      if (state.demoMode) {
+        state.demoMode = false;
+        state.customer = "";
+        state.items = [];
+        renderLogin();
+      } else {
+        await endWorkDay();
+      }
+    };
+  }
 
   const zoomOut = document.getElementById("btn-zoom-out");
   const zoomIn = document.getElementById("btn-zoom-in");
@@ -1447,6 +1460,10 @@ async function startApp() {
     } catch {}
   }
   onAuthStateChanged(auth, async user => {
+    if (IS_LOCAL || SKIP_LOGIN) {
+      startDemoMode();
+      return;
+    }
     if (user) {
       const saved = localStorage.getItem(SESSION_DAY_KEY);
       const today = sessionDayKey();
@@ -1464,19 +1481,25 @@ async function startApp() {
       markSessionDay();
       state.demoMode = false;
       window.bootApp();
-    } else if (IS_LOCAL) {
-      startDemoMode();
     } else {
       renderLogin();
     }
   }, err => {
     console.error(err);
+    if (SKIP_LOGIN || IS_LOCAL) {
+      startDemoMode();
+      return;
+    }
     renderLogin("接続エラーです。ネットワークを確認して再試行してください。");
   });
 }
 
 startApp().catch(err => {
   console.error(err);
+  if (SKIP_LOGIN || IS_LOCAL) {
+    startDemoMode();
+    return;
+  }
   renderLogin("起動に失敗しました。アプリを削除して再インストールしてください。");
 });
 

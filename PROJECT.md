@@ -28,6 +28,7 @@
 - Firebase Auth + Firestore（プロジェクト `pourvoussystem`、伝票と同じ）
 - ログインセッションはタブ内のみ（`inMemoryPersistence`・伝票と混ざらない）
 - **1日1回ログイン**：朝ログイン後はその日は再入力不要（`indexedDBLocalPersistence` + 日付チェック）
+- **仮運用**: `SKIP_LOGIN = true` のあいだはログイン省略（端末内保存のみ）。運用開始時に `false` へ戻す
 
 ## Firestore
 
@@ -116,3 +117,4 @@ GitHub リポジトリの Settings → Pages → `main` / root で公開。
 | 2026-07-09 | マスタ編集はPC、スマホは品目追加のみ |
 | 2026-07-10 | 品目の全体表示／解除ボタンを追加 |
 | 2026-07-10 | 横置き前提・端末ごとの画面自動最適化 |
+| 2026-07-11 | 運用開始まで `SKIP_LOGIN` でログイン省略 |
