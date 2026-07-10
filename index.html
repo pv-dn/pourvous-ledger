@@ -1151,11 +1151,12 @@ function loadCustomerItems(name) {
 }
 
 function selectCustomer(name) {
+  applyBuffer();
+  state.focus = null;
+  state.buffer = "";
   if (!name) {
     state.customer = "";
     state.items = [];
-    state.focus = null;
-    state.buffer = "";
     render();
     return;
   }
@@ -1165,6 +1166,9 @@ function selectCustomer(name) {
 }
 
 function setFocus(index, field) {
+  if (state.focus && (state.focus.index !== index || state.focus.field !== field)) {
+    applyBuffer();
+  }
   state.focus = { index, field };
   const item = state.items[index];
   state.buffer = String(field === "in" ? item.inQty : item.outQty || "");
@@ -1228,6 +1232,7 @@ function hasAnyQty(record) {
 }
 
 async function saveLedger() {
+  applyBuffer();
   if (!state.customer) { toast("客先を選択してください", "error"); return; }
   const record = buildLedgerRecord();
   if (!hasAnyQty(record)) { toast("数量を入力してください", "error"); return; }
@@ -1267,6 +1272,7 @@ function showInvoiceMemo(record) {
 }
 
 function showMemoFromForm() {
+  applyBuffer();
   if (!state.customer) { toast("客先を選択してください", "error"); return; }
   const record = buildLedgerRecord();
   if (!hasAnyQty(record)) { toast("数量を入力してください", "error"); return; }
