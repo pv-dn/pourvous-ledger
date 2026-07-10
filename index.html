@@ -162,6 +162,14 @@ select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;borde
 .master-btn{border:none;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
 .master-btn-edit{background:#f4f3ef;color:#1a1a2e}
 .master-btn-del{background:#fff3e0;color:#c62828}
+.master-btn-move{background:#eef2f7;color:#1a1a2e;min-width:34px;padding:6px 8px}
+.master-btn-move:disabled{opacity:.35;cursor:not-allowed}
+.master-group{margin-top:14px}
+.master-group:first-child{margin-top:0}
+.master-group-title{font-size:12px;font-weight:700;color:#5b4b8a;background:#f0ebff;border-radius:8px;padding:6px 10px;margin-bottom:6px}
+.master-toolbar-actions{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.master-toolbar-actions .master-add{margin:0;flex:1;min-width:140px}
+.master-toolbar-actions .btn{padding:11px 12px;font-size:12px;background:#fff;border:1px solid #ddd;color:#1a1a2e}
 .master-add{width:100%;padding:11px;border:1px dashed #bbb;border-radius:8px;background:#faf9f7;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:#1a1a2e}
 .master-form-panel{background:#fff;border-radius:16px;width:100%;max-width:480px;padding:20px}
 .master-form-panel h3{font-size:17px;margin-bottom:14px}
@@ -271,10 +279,101 @@ function registerServiceWorkerLater() {
 }
 
 const DEMO_CUSTOMERS = [
-  { id: "D01", name: "サンプル商事" },
-  { id: "D02", name: "デモレストラン" },
-  { id: "D03", name: "テスト病院" }
+  { id: "D01", name: "サンプル商事", group: "法人" },
+  { id: "D02", name: "デモレストラン", group: "飲食" },
+  { id: "D03", name: "テスト病院", group: "医療" }
 ];
+
+const UNGROUPED_LABEL = "未分類";
+
+function normalizeCustomer(c) {
+  return {
+    id: c?.id || "",
+    name: (c?.name || "").trim(),
+    group: (c?.group || "").trim()
+  };
+}
+
+function customerGroupName(c) {
+  return (c?.group || "").trim() || UNGROUPED_LABEL;
+}
+
+function existingCustomerGroups() {
+  const set = new Set();
+  for (const c of state.customers) {
+    const g = (c.group || "").trim();
+    if (g) set.add(g);
+  }
+  return [...set].sort((a, b) => a.localeCompare(b, "ja"));
+}
+
+function customersGrouped() {
+  const map = new Map();
+  for (const c of state.customers) {
+    const g = customerGroupName(c);
+    if (!map.has(g)) map.set(g, []);
+    map.get(g).push(c);
+  }
+  const keys = [...map.keys()].sort((a, b) => {
+    if (a === UNGROUPED_LABEL) return 1;
+    if (b === UNGROUPED_LABEL) return -1;
+    return a.localeCompare(b, "ja");
+  });
+  return keys.map(group => ({ group, customers: map.get(group) }));
+}
+
+function renderCustomerSelectOptions(selected = "") {
+  const groups = customersGrouped();
+  const hasNamedGroup = groups.some(g => g.group !== UNGROUPED_LABEL);
+  if (!hasNamedGroup) {
+    return state.customers.map(c =>
+      `<option value="${esc(c.name)}"${selected === c.name ? " selected" : ""}>${esc(c.name)}</option>`
+    ).join("");
+  }
+  return groups.map(({ group, customers }) =>
+    `<optgroup label="${esc(group)}">${customers.map(c =>
+      `<option value="${esc(c.name)}"${selected === c.name ? " selected" : ""}>${esc(c.name)}</option>`
+    ).join("")}</optgroup>`
+  ).join("");
+}
+
+async function moveCustomer(name, dir) {
+  if (!canMasterFullEdit()) return;
+  const i = state.customers.findIndex(c => c.name === name);
+  if (i < 0) return;
+  const group = customerGroupName(state.customers[i]);
+  let j = i + dir;
+  while (j >= 0 && j < state.customers.length) {
+    if (customerGroupName(state.customers[j]) === group) break;
+    j += dir;
+  }
+  if (j < 0 || j >= state.customers.length) return;
+  const item = state.customers.splice(i, 1)[0];
+  state.customers.splice(j, 0, item);
+  try {
+    await persistLedgerMaster();
+    render();
+  } catch (e) {
+    console.error(e);
+    toast("並び替えに失敗しました", "error");
+  }
+}
+
+async function sortCustomersByName() {
+  if (!canMasterFullEdit()) return;
+  const groups = customersGrouped();
+  state.customers = groups.flatMap(({ customers }) =>
+    [...customers].sort((a, b) => a.name.localeCompare(b.name, "ja"))
+  );
+  try {
+    await persistLedgerMaster();
+    toast("名前順に並べ替えました");
+    render();
+  } catch (e) {
+    console.error(e);
+    toast("並び替えに失敗しました", "error");
+  }
+}
 
 const DEMO_PRICES = [
   { customer: "サンプル商事", code: "U001", name: "作業着（上）" },
@@ -677,8 +776,8 @@ function loadLedgerMasterFromCache() {
     const cust = localStorage.getItem(custKey);
     const items = localStorage.getItem(itemsKey);
     if (cust && items) {
-      state.customers = JSON.parse(cust);
-      state.prices = JSON.parse(items);
+      state.customers = JSON.parse(cust).map(normalizeCustomer).filter(c => c.name);
+      state.prices = normalizeMasterItems(JSON.parse(items));
       return true;
     }
   } catch {}
@@ -697,7 +796,7 @@ async function importInvoiceMasterIfEmpty() {
   const [pvCust, pvPrices] = await Promise.all([fsLoad("customers"), fsLoad("prices")]);
   let imported = false;
   if (Array.isArray(pvCust) && pvCust.length) {
-    state.customers = pvCust.map(c => ({ id: c.id || "", name: c.name || "" })).filter(c => c.name);
+    state.customers = pvCust.map(c => normalizeCustomer({ id: c.id || "", name: c.name || "", group: c.group || "" })).filter(c => c.name);
     imported = true;
   }
   if (Array.isArray(pvPrices) && pvPrices.length) {
@@ -724,13 +823,13 @@ async function loadLedgerMaster() {
     await importInvoiceMasterIfEmpty();
     return;
   }
-  state.customers = Array.isArray(customers) ? customers : [];
+  state.customers = Array.isArray(customers) ? customers.map(normalizeCustomer).filter(c => c.name) : [];
   state.prices = normalizeMasterItems(items);
   cacheLedgerMaster();
 }
 
 async function persistLedgerMaster() {
-  state.customers = state.customers.map(c => ({ id: c.id || "", name: (c.name || "").trim() })).filter(c => c.name);
+  state.customers = state.customers.map(c => normalizeCustomer(c)).filter(c => c.name);
   state.prices = normalizeMasterItems(state.prices);
   cacheLedgerMaster();
   if (state.demoMode) return;
@@ -754,7 +853,14 @@ function openMasterCustomerForm(mode, name = "") {
     toast("客先の編集はPCから行ってください", "error");
     return;
   }
-  state.masterForm = { kind: "customer", mode, name, oldName: mode === "edit" ? name : "" };
+  const current = mode === "edit" ? state.customers.find(c => c.name === name) : null;
+  state.masterForm = {
+    kind: "customer",
+    mode,
+    name,
+    group: current?.group || "",
+    oldName: mode === "edit" ? name : ""
+  };
   render();
 }
 
@@ -789,16 +895,19 @@ async function submitMasterForm() {
   }
   const name = (document.getElementById("master-form-name")?.value || "").trim();
   const code = (document.getElementById("master-form-code")?.value || "").trim();
+  const group = (document.getElementById("master-form-group")?.value || "").trim();
   try {
     if (f.kind === "customer") {
       if (!name) { toast("客先名を入力してください", "error"); return; }
       if (f.mode === "add") {
         if (state.customers.some(c => c.name === name)) { toast("同じ客先があります", "error"); return; }
-        state.customers.push({ id: nextCustomerId(), name });
+        state.customers.push(normalizeCustomer({ id: nextCustomerId(), name, group }));
         if (!state.masterCustomer) state.masterCustomer = name;
       } else {
         if (name !== f.oldName && state.customers.some(c => c.name === name)) { toast("同じ客先があります", "error"); return; }
-        state.customers = state.customers.map(c => c.name === f.oldName ? { ...c, name } : c);
+        state.customers = state.customers.map(c =>
+          c.name === f.oldName ? normalizeCustomer({ ...c, name, group }) : c
+        );
         state.prices = state.prices.map(p => p.customer === f.oldName ? { ...p, customer: name } : p);
         if (state.customer === f.oldName) {
           state.customer = name;
@@ -1094,9 +1203,7 @@ function renderLogin(notice) {
 }
 
 function renderInputTab() {
-  const custOpts = state.customers
-    .map(c => `<option value="${esc(c.name)}"${state.customer === c.name ? " selected" : ""}>${esc(c.name)}</option>`)
-    .join("");
+  const custOpts = renderCustomerSelectOptions(state.customer);
 
   const head = state.fitAllMode && state.fitCols > 1
     ? `<div class="list-head"><span>品名</span><span>入</span><span>出</span><span>品名</span><span>入</span><span>出</span></div>`
@@ -1165,17 +1272,29 @@ function renderMasterTab() {
   const fullEdit = canMasterFullEdit();
   const section = fullEdit ? state.masterSection : "items";
   const customerSection = section === "customers";
-  const custRows = state.customers.map((c, i) => {
-    const count = customerItemRows(c.name).length;
-    return `<div class="master-row">
+  const grouped = customersGrouped();
+  const custRows = grouped.map(({ group, customers }) => {
+    const rows = customers.map((c, gi) => {
+      const count = customerItemRows(c.name).length;
+      const gName = customerGroupName(c);
+      const canUp = gi > 0;
+      const canDown = gi < customers.length - 1;
+      return `<div class="master-row">
       <div class="master-row-body">
         <div class="master-row-title">${esc(c.name)}</div>
-        <div class="master-row-meta">品目 ${count} 件${c.id ? ` · ID ${esc(c.id)}` : ""}</div>
+        <div class="master-row-meta">品目 ${count} 件${c.id ? ` · ID ${esc(c.id)}` : ""} · ${esc(gName)}</div>
       </div>
       ${fullEdit ? `<div class="master-row-actions">
-        <button type="button" class="master-btn master-btn-edit" data-master-customer-idx="${i}">編集</button>
-        <button type="button" class="master-btn master-btn-del" data-master-del-customer-idx="${i}">削除</button>
+        <button type="button" class="master-btn master-btn-move" data-master-move="${esc(c.name)}" data-dir="-1" ${canUp ? "" : "disabled"} aria-label="上へ">↑</button>
+        <button type="button" class="master-btn master-btn-move" data-master-move="${esc(c.name)}" data-dir="1" ${canDown ? "" : "disabled"} aria-label="下へ">↓</button>
+        <button type="button" class="master-btn master-btn-edit" data-master-customer-name="${esc(c.name)}">編集</button>
+        <button type="button" class="master-btn master-btn-del" data-master-del-customer-name="${esc(c.name)}">削除</button>
       </div>` : ""}
+    </div>`;
+    }).join("");
+    return `<div class="master-group">
+      <div class="master-group-title">${esc(group)}（${customers.length}）</div>
+      ${rows}
     </div>`;
   }).join("");
 
@@ -1192,12 +1311,10 @@ function renderMasterTab() {
       </div>` : ""}
     </div>`).join("") : "";
 
-  const custOpts = state.customers
-    .map(c => `<option value="${esc(c.name)}"${masterCust === c.name ? " selected" : ""}>${esc(c.name)}</option>`)
-    .join("");
+  const custOpts = renderCustomerSelectOptions(masterCust);
 
   const note = fullEdit
-    ? "客先と品目を登録・編集できます。伝票アプリのマスタは変更しません。"
+    ? "客先はグループ分け・並べ替えできます。伝票アプリのマスタは変更しません。"
     : "スマホでは品目の追加のみ可能です。客先の登録・編集・削除はPCから行ってください。";
 
   return `
@@ -1208,8 +1325,11 @@ function renderMasterTab() {
         <button type="button" class="master-subtab${!customerSection ? " active" : ""}" data-master-section="items">品目</button>
       </div>` : ""}
       ${customerSection ? `
-        <button type="button" class="master-add" id="master-add-customer">＋ 客先を追加</button>
-        <div class="master-list" style="margin-top:10px">${custRows || `<div class="empty" style="padding:24px">客先がありません</div>`}</div>
+        <div class="master-toolbar-actions">
+          <button type="button" class="master-add" id="master-add-customer">＋ 客先を追加</button>
+          <button type="button" class="btn" id="master-sort-customers">名前順に並べ替え</button>
+        </div>
+        <div class="master-list">${custRows || `<div class="empty" style="padding:24px">客先がありません</div>`}</div>
       ` : `
         <div class="master-toolbar">
           <select id="master-cust-select">${state.customers.length ? custOpts : `<option value="">客先がありません</option>`}</select>
@@ -1227,6 +1347,9 @@ function renderMasterForm() {
   const title = isCustomer
     ? (f.mode === "add" ? "客先を追加" : "客先を編集")
     : (f.mode === "add" ? "品目を追加" : "品目を編集");
+  const groupOpts = existingCustomerGroups()
+    .map(g => `<option value="${esc(g)}"></option>`)
+    .join("");
   return `
     <div class="detail-overlay" id="master-form-overlay">
       <div class="master-form-panel">
@@ -1234,6 +1357,10 @@ function renderMasterForm() {
         ${!isCustomer ? `<p style="font-size:13px;color:#666;margin-bottom:10px">客先：${esc(f.customer || state.masterCustomer)}</p>` : ""}
         <label class="lbl">${isCustomer ? "客先名" : "品名"}</label>
         <input type="text" id="master-form-name" value="${esc(f.name)}" placeholder="${isCustomer ? "例：(株)サイゼリヤ 神奈川工場" : "例：作業着（上）"}">
+        ${isCustomer ? `<label class="lbl">グループ（任意）</label>
+        <input type="text" id="master-form-group" list="master-group-list" value="${esc(f.group || "")}" placeholder="例：医療 / 飲食 / 法人">
+        <datalist id="master-group-list">${groupOpts}</datalist>
+        <p style="font-size:11px;color:#888;margin:-4px 0 10px">同じグループ名の客先がまとめて表示されます</p>` : ""}
         ${!isCustomer ? `<label class="lbl">コード（任意）</label><input type="text" id="master-form-code" value="${esc(f.code)}" placeholder="例：U001">` : ""}
         <div class="master-form-actions">
           <button type="button" class="btn btn-ghost" id="master-form-cancel" style="background:#f4f3ef;color:#1a1a2e">キャンセル</button>
@@ -1422,17 +1549,16 @@ function render() {
     });
     const addCust = document.getElementById("master-add-customer");
     if (addCust) addCust.onclick = () => openMasterCustomerForm("add");
-    document.querySelectorAll("[data-master-customer-idx]").forEach(btn => {
-      btn.onclick = () => {
-        const c = state.customers[+btn.dataset.masterCustomerIdx];
-        if (c) openMasterCustomerForm("edit", c.name);
-      };
+    const sortCust = document.getElementById("master-sort-customers");
+    if (sortCust) sortCust.onclick = () => sortCustomersByName();
+    document.querySelectorAll("[data-master-customer-name]").forEach(btn => {
+      btn.onclick = () => openMasterCustomerForm("edit", btn.dataset.masterCustomerName);
     });
-    document.querySelectorAll("[data-master-del-customer-idx]").forEach(btn => {
-      btn.onclick = () => {
-        const c = state.customers[+btn.dataset.masterDelCustomerIdx];
-        if (c) deleteMasterCustomer(c.name);
-      };
+    document.querySelectorAll("[data-master-del-customer-name]").forEach(btn => {
+      btn.onclick = () => deleteMasterCustomer(btn.dataset.masterDelCustomerName);
+    });
+    document.querySelectorAll("[data-master-move]").forEach(btn => {
+      btn.onclick = () => moveCustomer(btn.dataset.masterMove, +btn.dataset.dir);
     });
     const masterSel = document.getElementById("master-cust-select");
     if (masterSel) masterSel.onchange = e => {
