@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="入出荷台帳">
-<meta name="theme-color" content="#1a1a2e">
+<meta name="theme-color" content="#4FC3F7">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -20,19 +20,19 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 #root{height:100%}
 .hidden{display:none!important}
 .app{max-width:none;width:100%;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden}
-.header{background:#1a1a2e;color:#e8d5b7;padding:calc(8px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;z-index:30}
+.header{background:#4FC3F7;color:#fff;padding:calc(8px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;z-index:30}
 .header-brand{flex-shrink:0;min-width:0}
 .header h1{font-size:calc(16px * var(--ui-scale, 1));font-weight:700}
-.header-sub{font-size:calc(11px * var(--ui-scale, 1));opacity:.75;margin-top:2px}
+.header-sub{font-size:calc(11px * var(--ui-scale, 1));opacity:.85;margin-top:2px}
 .header-tabs{display:flex;align-items:center;gap:4px;flex:1;min-width:0;justify-content:center}
-.header-tab{border:none;border-radius:8px;padding:calc(8px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));background:rgba(255,255,255,.08);color:#c8c0b0;font-size:calc(13px * var(--ui-scale, 1));font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
-.header-tab.active{background:#e8d5b7;color:#1a1a2e}
+.header-tab{border:none;border-radius:8px;padding:calc(8px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));background:rgba(255,255,255,.22);color:#fff;font-size:calc(13px * var(--ui-scale, 1));font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.header-tab.active{background:#fff;color:#0288D1}
 .header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0}
 .zoom-controls{display:flex;align-items:center;gap:2px}
 .btn-zoom{min-width:34px;padding:5px 8px;font-size:18px;line-height:1;font-weight:700}
 .btn-fit{min-width:auto;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap}
-.btn-fit.active{background:#e8d5b7;color:#1a1a2e}
-.zoom-label{font-size:11px;min-width:38px;text-align:center;opacity:.85}
+.btn-fit.active{background:#fff;color:#0288D1}
+.zoom-label{font-size:11px;min-width:38px;text-align:center;opacity:.9}
 .items-panel.fit-all .scroll-btn{display:none}
 .items-panel.fit-all .items-scroll{overflow:hidden;display:flex;flex-direction:column;flex:1;min-height:0}
 .items-panel.fit-all .item-list{flex:1;min-height:0;display:flex;flex-direction:column}
@@ -51,7 +51,7 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 .items-panel.fit-all.fit-cols-2 .list-head span{width:auto}
 .items-panel.fit-all.fit-cols-2 .list-head span:nth-child(4){text-align:left}
 .btn{border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
-.btn-ghost{background:rgba(255,255,255,.12);color:#e8d5b7}
+.btn-ghost{background:rgba(255,255,255,.22);color:#fff}
 .btn-primary{background:#e8d5b7;color:#1a1a2e}
 .btn-primary:disabled{opacity:.45;cursor:not-allowed}
 .btn:disabled{opacity:.45;cursor:not-allowed}
