@@ -36,9 +36,10 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 .row-mode-controls{display:flex;align-items:center;gap:2px}
 .btn-row-mode{min-width:auto;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap}
 .btn-row-mode.active{background:#fff;color:#0288D1}
-.item-list.col-flow{display:flex;flex-direction:row;align-items:stretch;gap:14px;width:max-content;min-width:100%;min-height:100%}
-.item-col{display:flex;flex-direction:column;flex:0 0 260px;width:260px;min-height:100%}
-.item-col .item-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(8px * var(--iz));width:100%;flex:1 1 0;min-height:48px;align-items:center}
+.item-list.col-flow{display:flex;flex-direction:row;align-items:stretch;gap:14px;width:max-content;min-width:100%;height:100%;box-sizing:border-box}
+.item-col{display:flex;flex-direction:column;flex:0 0 260px;width:260px;height:100%;min-height:0}
+.item-col .item-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(8px * var(--iz));width:100%;flex:1 1 0;min-height:0;align-items:center;padding:calc(4px * var(--iz)) calc(5px * var(--iz))}
+.item-col .qty-cell{height:auto;min-height:calc(36px * var(--iz));align-self:stretch}
 .item-col .item-row:first-of-type{border-top:1px solid #eceae4}
 .list-head.col-flow{display:flex;flex-direction:row;gap:14px;width:max-content;min-width:100%;flex-shrink:0;padding-bottom:2px}
 .list-head.col-flow .list-head-unit{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(8px * var(--iz));align-items:center;flex:0 0 260px;width:260px;padding:0 calc(5px * var(--iz)) calc(3px * var(--iz));font-size:calc(13px * var(--iz));font-weight:700;color:#888;text-align:center;box-sizing:border-box}
@@ -285,7 +286,7 @@ function bindInstallButtons() {
 
 function registerServiceWorkerLater() {
   if (!("serviceWorker" in navigator)) return;
-  const run = () => navigator.serviceWorker.register("./sw.js").catch(() => {});
+  const run = () => navigator.serviceWorker.register("./sw.js?v=5", { updateViaCache: "none" }).catch(() => {});
   if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 5000 });
   else setTimeout(run, 3000);
 }
@@ -548,16 +549,34 @@ function loadItemRows() {
 function setItemRows(rows) {
   const n = Number(rows);
   if (!ITEM_ROWS_OPTIONS.includes(n)) return;
+  if (state.itemRows === n) {
+    applyItemColLayout();
+    return;
+  }
   state.itemRows = n;
   localStorage.setItem(ITEM_ROWS_KEY, String(n));
   render();
+  toast(`${n}行表示に切り替えました`);
 }
 
 function itemLayoutMeta(n = state.items.length) {
   const rowMax = Number(state.itemRows) || 3;
-  if (n <= 0) return { rows: 0, cols: 0 };
-  if (n <= rowMax) return { rows: n, cols: 1 };
-  return { rows: rowMax, cols: Math.ceil(n / rowMax) };
+  if (n <= 0) return { rows: rowMax, cols: 0, rowMax };
+  return { rows: rowMax, cols: Math.ceil(n / rowMax), rowMax };
+}
+
+/** 行数が画面高さに効くよう、列エリアの高さを明示する */
+function applyItemColLayout() {
+  const scroll = document.getElementById("items-scroll");
+  const list = scroll?.querySelector(".item-list.col-flow");
+  const head = scroll?.querySelector(".list-head.col-flow");
+  if (!scroll || !list) return;
+  const avail = Math.floor(scroll.clientHeight - (head?.offsetHeight || 0) - 6);
+  if (avail < 60) return;
+  list.style.height = `${avail}px`;
+  list.querySelectorAll(".item-col").forEach(col => {
+    col.style.height = `${avail}px`;
+  });
 }
 
 function loadItemZoom() {
@@ -602,8 +621,14 @@ function applyDeviceLayout() {
   document.documentElement.style.setProperty("--numpad-w", `${numpadW}px`);
 }
 
-window.addEventListener("resize", () => applyDeviceLayout());
-window.addEventListener("orientationchange", () => applyDeviceLayout());
+window.addEventListener("resize", () => {
+  applyDeviceLayout();
+  if (state.tab === 0) requestAnimationFrame(() => applyItemColLayout());
+});
+window.addEventListener("orientationchange", () => {
+  applyDeviceLayout();
+  setTimeout(() => { if (state.tab === 0) applyItemColLayout(); }, 250);
+});
 applyDeviceLayout();
 
 const state = {
@@ -1153,26 +1178,52 @@ function closeItemAdd() {
 }
 
 function searchMasterItems(q) {
-  const query = String(q || "").trim().toLowerCase();
+  const query = normalizeItemName(q);
   const seen = new Set();
   const hits = [];
   for (const p of state.prices) {
     const name = (p.name || "").trim();
     if (!name) continue;
-    const key = `${name}\t${(p.code || "").trim()}`;
+    const key = `${normalizeItemName(name)}\t${(p.code || "").trim()}`;
     if (seen.has(key)) continue;
-    if (query && !name.toLowerCase().includes(query) && !(p.code || "").toLowerCase().includes(query)) continue;
-    if (state.items.some(it => it.name === name)) continue;
+    const nameKey = normalizeItemName(name);
+    const codeKey = String(p.code || "").toLowerCase();
+    if (query && !nameKey.includes(query) && !codeKey.includes(query)) continue;
+    if (isOnInputList(name)) continue;
     seen.add(key);
     hits.push({
       name,
       code: p.code || "",
       fromCustomer: p.customer || "",
-      alreadyOnCustomer: state.prices.some(x => x.customer === state.customer && x.name === name)
+      alreadyOnCustomer: state.prices.some(x => x.customer === state.customer && normalizeItemName(x.name) === nameKey)
     });
     if (hits.length >= 50) break;
   }
   return hits;
+}
+
+function normalizeItemName(name) {
+  return String(name || "")
+    .trim()
+    .normalize("NFKC")
+    .replace(/[\s　]+/g, "")
+    .toLowerCase();
+}
+
+/** 登録済み品目を探す（当客先優先、なければ全体） */
+function findRegisteredItem(name) {
+  const key = normalizeItemName(name);
+  if (!key) return null;
+  const onCustomer = state.prices.find(
+    p => p.customer === state.customer && normalizeItemName(p.name) === key
+  );
+  if (onCustomer) return onCustomer;
+  return state.prices.find(p => normalizeItemName(p.name) === key) || null;
+}
+
+function isOnInputList(name) {
+  const key = normalizeItemName(name);
+  return state.items.some(it => normalizeItemName(it.name) === key);
 }
 
 async function addItemToInput(name, { code = "", toMaster = false } = {}) {
@@ -1185,16 +1236,18 @@ async function addItemToInput(name, { code = "", toMaster = false } = {}) {
     toast("品名を入力してください", "error");
     return;
   }
-  if (state.items.some(it => it.name === name)) {
-    toast("すでに一覧にあります", "error");
-    return;
-  }
-  let itemCode = code || "";
-  let adhoc = true;
-  if (toMaster) {
-    itemCode = normalizeItemCode(itemCode, { assignIfEmpty: true });
-    if (!state.prices.some(p => p.customer === state.customer && p.name === name)) {
-      state.prices.push({ customer: state.customer, code: itemCode, name });
+
+  const registered = findRegisteredItem(name);
+  if (registered) {
+    if (isOnInputList(registered.name)) {
+      toast("すでに一覧にあります", "error");
+      return;
+    }
+    let itemCode = registered.code || code || "";
+    let onThisCustomer = registered.customer === state.customer;
+    if (toMaster && !onThisCustomer) {
+      itemCode = normalizeItemCode(itemCode, { assignIfEmpty: true });
+      state.prices.push({ customer: state.customer, code: itemCode, name: registered.name });
       try {
         await persistLedgerMaster();
       } catch (e) {
@@ -1202,9 +1255,38 @@ async function addItemToInput(name, { code = "", toMaster = false } = {}) {
         toast("マスタへの登録に失敗しました", "error");
         return;
       }
-    } else {
-      const existing = state.prices.find(p => p.customer === state.customer && p.name === name);
-      itemCode = existing?.code || itemCode;
+      onThisCustomer = true;
+    }
+    state.items.push({
+      code: itemCode || "",
+      name: registered.name,
+      inQty: "",
+      outQty: "",
+      adhoc: !onThisCustomer
+    });
+    state.itemAddOpen = false;
+    state.focus = { index: state.items.length - 1, field: "in" };
+    state.buffer = "";
+    toast("登録済みの品目です。マスタから追加しました");
+    render();
+    return;
+  }
+
+  if (isOnInputList(name)) {
+    toast("すでに一覧にあります", "error");
+    return;
+  }
+  let itemCode = code || "";
+  let adhoc = true;
+  if (toMaster) {
+    itemCode = normalizeItemCode(itemCode, { assignIfEmpty: true });
+    state.prices.push({ customer: state.customer, code: itemCode, name });
+    try {
+      await persistLedgerMaster();
+    } catch (e) {
+      console.error(e);
+      toast("マスタへの登録に失敗しました", "error");
+      return;
     }
     adhoc = false;
   }
@@ -1872,6 +1954,7 @@ function render() {
       scrollUp.onclick = () => scrollEl.scrollBy({ top: -scrollStep(), behavior: "smooth" });
       scrollDown.onclick = () => scrollEl.scrollBy({ top: scrollStep(), behavior: "smooth" });
     }
+    requestAnimationFrame(() => applyItemColLayout());
   }
 
   const itemAddOverlay = document.getElementById("item-add-overlay");

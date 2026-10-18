@@ -1,4 +1,4 @@
-const CACHE_NAME = "pourvous-ledger-v4";
+const CACHE_NAME = "pourvous-ledger-v5";
 const SHELL = [
   "./index.html",
   "./manifest.webmanifest",
@@ -27,12 +27,17 @@ function isNavigation(request) {
     (request.method === "GET" && request.headers.get("accept")?.includes("text/html"));
 }
 
+function isHtml(url) {
+  return url.pathname.endsWith(".html") || url.pathname.endsWith("/");
+}
+
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
-  if (isNavigation(event.request)) {
+  // HTMLは常にネットワーク優先（古い台帳レイアウトが残らないように）
+  if (isNavigation(event.request) || isHtml(url)) {
     event.respondWith(
       fetch(event.request)
         .then(response => {
@@ -48,15 +53,14 @@ self.addEventListener("fetch", event => {
   }
 
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(response => {
+    fetch(event.request)
+      .then(response => {
         if (response.ok) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
         }
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });
