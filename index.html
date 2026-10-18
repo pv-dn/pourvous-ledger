@@ -33,16 +33,16 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 .btn-fit{min-width:auto;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap}
 .btn-fit.active{background:#fff;color:#0288D1}
 .zoom-label{font-size:11px;min-width:38px;text-align:center;opacity:.9}
-.row-mode-controls{display:flex;align-items:center;gap:2px}
-.btn-row-mode{min-width:auto;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap}
-.btn-row-mode.active{background:#fff;color:#0288D1}
-.item-list.col-flow{display:flex;flex-direction:row;align-items:stretch;gap:14px;width:max-content;min-width:100%;height:100%;box-sizing:border-box}
-.item-col{display:flex;flex-direction:column;flex:0 0 260px;width:260px;height:100%;min-height:0}
+.col-mode-controls{display:flex;align-items:center;gap:2px}
+.btn-col-mode{min-width:auto;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap}
+.btn-col-mode.active{background:#fff;color:#0288D1}
+.item-list.col-flow{display:flex;flex-direction:row;align-items:stretch;gap:14px;width:100%;height:100%;box-sizing:border-box}
+.item-col{display:flex;flex-direction:column;flex:1 1 0;min-width:0;height:100%}
 .item-col .item-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(8px * var(--iz));width:100%;flex:1 1 0;min-height:0;align-items:center;padding:calc(4px * var(--iz)) calc(5px * var(--iz))}
 .item-col .qty-cell{height:auto;min-height:calc(36px * var(--iz));align-self:stretch}
 .item-col .item-row:first-of-type{border-top:1px solid #eceae4}
-.list-head.col-flow{display:flex;flex-direction:row;gap:14px;width:max-content;min-width:100%;flex-shrink:0;padding-bottom:2px}
-.list-head.col-flow .list-head-unit{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(8px * var(--iz));align-items:center;flex:0 0 260px;width:260px;padding:0 calc(5px * var(--iz)) calc(3px * var(--iz));font-size:calc(13px * var(--iz));font-weight:700;color:#888;text-align:center;box-sizing:border-box}
+.list-head.col-flow{display:flex;flex-direction:row;gap:14px;width:100%;flex-shrink:0;padding-bottom:2px}
+.list-head.col-flow .list-head-unit{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(8px * var(--iz));align-items:center;flex:1 1 0;min-width:0;padding:0 calc(5px * var(--iz)) calc(3px * var(--iz));font-size:calc(13px * var(--iz));font-weight:700;color:#888;text-align:center;box-sizing:border-box}
 .list-head.col-flow .list-head-unit span:first-child{text-align:left}
 .list-head.col-flow .list-head-unit span:not(:first-child){width:calc(72px * var(--iz))}
 .btn{border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
@@ -286,7 +286,7 @@ function bindInstallButtons() {
 
 function registerServiceWorkerLater() {
   if (!("serviceWorker" in navigator)) return;
-  const run = () => navigator.serviceWorker.register("./sw.js?v=5", { updateViaCache: "none" }).catch(() => {});
+  const run = () => navigator.serviceWorker.register("./sw.js?v=6", { updateViaCache: "none" }).catch(() => {});
   if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 5000 });
   else setTimeout(run, 3000);
 }
@@ -538,34 +538,36 @@ const ZOOM_KEY = "lg_itemZoom";
 const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 1.5;
 const ZOOM_STEP = 0.1;
-const ITEM_ROWS_KEY = "lg_itemRows";
-const ITEM_ROWS_OPTIONS = [2, 3, 4];
+const ITEM_COLS_KEY = "lg_itemCols";
+const ITEM_COLS_OPTIONS = [2, 3, 4];
 
-function loadItemRows() {
-  const v = parseInt(localStorage.getItem(ITEM_ROWS_KEY), 10);
-  return ITEM_ROWS_OPTIONS.includes(v) ? v : 3;
+function loadItemCols() {
+  const v = parseInt(localStorage.getItem(ITEM_COLS_KEY), 10);
+  return ITEM_COLS_OPTIONS.includes(v) ? v : 3;
 }
 
-function setItemRows(rows) {
-  const n = Number(rows);
-  if (!ITEM_ROWS_OPTIONS.includes(n)) return;
-  if (state.itemRows === n) {
+function setItemCols(cols) {
+  const n = Number(cols);
+  if (!ITEM_COLS_OPTIONS.includes(n)) return;
+  if (state.itemCols === n) {
     applyItemColLayout();
     return;
   }
-  state.itemRows = n;
-  localStorage.setItem(ITEM_ROWS_KEY, String(n));
+  state.itemCols = n;
+  localStorage.setItem(ITEM_COLS_KEY, String(n));
   render();
-  toast(`${n}行表示に切り替えました`);
+  toast(`${n}列表示に切り替えました`);
 }
 
 function itemLayoutMeta(n = state.items.length) {
-  const rowMax = Number(state.itemRows) || 3;
-  if (n <= 0) return { rows: rowMax, cols: 0, rowMax };
-  return { rows: rowMax, cols: Math.ceil(n / rowMax), rowMax };
+  const colMax = Number(state.itemCols) || 3;
+  if (n <= 0) return { rows: 0, cols: 0, colMax };
+  const cols = Math.min(colMax, n);
+  const rows = Math.ceil(n / cols);
+  return { rows, cols, colMax };
 }
 
-/** 行数が画面高さに効くよう、列エリアの高さを明示する */
+/** 列内の品目が画面高さに均等配置されるよう高さを明示する */
 function applyItemColLayout() {
   const scroll = document.getElementById("items-scroll");
   const list = scroll?.querySelector(".item-list.col-flow");
@@ -591,8 +593,8 @@ function updateZoomControls() {
   const inn = document.getElementById("btn-zoom-in");
   if (out) out.disabled = state.itemZoom <= ZOOM_MIN;
   if (inn) inn.disabled = state.itemZoom >= ZOOM_MAX;
-  document.querySelectorAll(".btn-row-mode").forEach(btn => {
-    btn.classList.toggle("active", +btn.dataset.rows === state.itemRows);
+  document.querySelectorAll(".btn-col-mode").forEach(btn => {
+    btn.classList.toggle("active", +btn.dataset.cols === state.itemCols);
   });
 }
 
@@ -648,7 +650,7 @@ const state = {
   userDisplayName: "",
   loading: false,
   itemZoom: loadItemZoom(),
-  itemRows: loadItemRows(),
+  itemCols: loadItemCols(),
   itemAddOpen: false,
   itemAddTab: "free",
   itemAddQuery: "",
@@ -1560,7 +1562,7 @@ function renderInputTab() {
       const rowsHtml = slice.map((it, j) => renderItemRow(it, start + j)).join("");
       colsHtml.push(`<div class="item-col" data-col="${c}">${rowsHtml}</div>`);
     }
-    body = `${head}<div class="item-list col-flow" data-rows="${layout.rows}">${colsHtml.join("")}</div>`;
+    body = `${head}<div class="item-list col-flow" data-cols="${layout.cols}" data-rows="${layout.rows}">${colsHtml.join("")}</div>`;
   }
 
   return `
@@ -1851,9 +1853,9 @@ function render() {
           <button type="button" class="header-tab${state.tab === 2 ? " active" : ""}" data-tab="2">マスタ</button>
         </nav>
         <div class="header-actions">
-          <div class="row-mode-controls${state.tab === 0 ? "" : " hidden"}">
-            ${ITEM_ROWS_OPTIONS.map(r =>
-              `<button type="button" class="btn btn-ghost btn-row-mode${state.itemRows === r ? " active" : ""}" data-rows="${r}">${r}行</button>`
+          <div class="col-mode-controls${state.tab === 0 ? "" : " hidden"}">
+            ${ITEM_COLS_OPTIONS.map(c =>
+              `<button type="button" class="btn btn-ghost btn-col-mode${state.itemCols === c ? " active" : ""}" data-cols="${c}">${c}列</button>`
             ).join("")}
           </div>
           <div class="zoom-controls${state.tab === 0 ? "" : " hidden"}">
@@ -1921,8 +1923,8 @@ function render() {
 
   const zoomOut = document.getElementById("btn-zoom-out");
   const zoomIn = document.getElementById("btn-zoom-in");
-  document.querySelectorAll(".btn-row-mode").forEach(btn => {
-    btn.onclick = () => setItemRows(+btn.dataset.rows);
+  document.querySelectorAll(".btn-col-mode").forEach(btn => {
+    btn.onclick = () => setItemCols(+btn.dataset.cols);
   });
   if (zoomOut) zoomOut.onclick = () => setItemZoom(state.itemZoom - ZOOM_STEP);
   if (zoomIn) zoomIn.onclick = () => setItemZoom(state.itemZoom + ZOOM_STEP);
