@@ -1207,7 +1207,46 @@ function numpadPress(key) {
     state.buffer = (state.buffer === "0" ? "" : state.buffer) + key;
   }
   render();
+  if (state.focus) {
+    requestAnimationFrame(() => {
+      const el = document.querySelector(
+        `.qty-cell[data-i="${state.focus.index}"][data-f="${state.focus.field}"]`
+      );
+      el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    });
+  }
 }
+
+function isTypingInFormField(el) {
+  if (!el || el === document.body) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || el.isContentEditable;
+}
+
+/** キーボードEnter／数字もテンキーと同じ（Enterで縦に進む） */
+function onAppKeyDown(e) {
+  if (!isActiveSession() || state.tab !== 0 || state.loading) return;
+  if (state.detail || state.invoiceMemo || state.masterForm) return;
+  if (isTypingInFormField(document.activeElement) || isTypingInFormField(e.target)) return;
+  if (!state.focus) return;
+
+  if (e.key === "Enter") {
+    e.preventDefault();
+    numpadPress("enter");
+    return;
+  }
+  if (e.key === "Backspace" || e.key === "Delete") {
+    e.preventDefault();
+    numpadPress("del");
+    return;
+  }
+  if (/^[0-9]$/.test(e.key)) {
+    e.preventDefault();
+    numpadPress(e.key);
+  }
+}
+
+window.addEventListener("keydown", onAppKeyDown);
 
 function buildLedgerRecord() {
   const user = auth.currentUser;
