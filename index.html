@@ -36,11 +36,12 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 .row-mode-controls{display:flex;align-items:center;gap:2px}
 .btn-row-mode{min-width:auto;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap}
 .btn-row-mode.active{background:#fff;color:#0288D1}
-.item-list.col-flow{display:grid;grid-template-rows:repeat(var(--item-rows,3),auto);grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);column-gap:14px;align-content:start;width:max-content;min-width:100%}
-.item-list.col-flow .item-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(8px * var(--iz));width:100%;max-width:none}
-.item-list.col-flow .item-row:first-of-type{border-top:1px solid #eceae4}
-.list-head.col-flow{display:grid;grid-auto-flow:column;grid-template-rows:auto;grid-auto-columns:minmax(220px,1fr);column-gap:14px;width:max-content;min-width:100%;flex-shrink:0;padding-bottom:2px}
-.list-head.col-flow .list-head-unit{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(8px * var(--iz));align-items:center;padding:0 calc(5px * var(--iz)) calc(3px * var(--iz));font-size:calc(13px * var(--iz));font-weight:700;color:#888;text-align:center}
+.item-list.col-flow{display:flex;flex-direction:row;align-items:stretch;gap:14px;width:max-content;min-width:100%;min-height:100%}
+.item-col{display:flex;flex-direction:column;flex:0 0 260px;width:260px;min-height:100%}
+.item-col .item-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(8px * var(--iz));width:100%;flex:1 1 0;min-height:48px;align-items:center}
+.item-col .item-row:first-of-type{border-top:1px solid #eceae4}
+.list-head.col-flow{display:flex;flex-direction:row;gap:14px;width:max-content;min-width:100%;flex-shrink:0;padding-bottom:2px}
+.list-head.col-flow .list-head-unit{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(8px * var(--iz));align-items:center;flex:0 0 260px;width:260px;padding:0 calc(5px * var(--iz)) calc(3px * var(--iz));font-size:calc(13px * var(--iz));font-weight:700;color:#888;text-align:center;box-sizing:border-box}
 .list-head.col-flow .list-head-unit span:first-child{text-align:left}
 .list-head.col-flow .list-head-unit span:not(:first-child){width:calc(72px * var(--iz))}
 .btn{border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
@@ -57,7 +58,7 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 .scroll-btn{border:1px solid #ddd;border-radius:8px;background:#fff;color:#1a1a2e;font-size:12px;font-weight:700;padding:4px;cursor:pointer;font-family:inherit;flex-shrink:0}
 .scroll-btn:active{background:#f4f3ef}
 .card{background:#fff;border:1px solid #e8e6e0;border-radius:12px;padding:calc(12px * var(--ui-scale, 1));margin-bottom:12px}
-.items-scroll.card{margin-bottom:0;padding:4px 6px 2px}
+.items-scroll.card{margin-bottom:0;padding:4px 6px 2px;display:flex;flex-direction:column;flex:1;min-height:0}
 .lbl{font-size:12px;color:#666;font-weight:600;margin-bottom:6px;display:block}
 select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:15px;font-family:inherit;background:#fff}
 .meta-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -545,14 +546,15 @@ function loadItemRows() {
 }
 
 function setItemRows(rows) {
-  if (!ITEM_ROWS_OPTIONS.includes(rows)) return;
-  state.itemRows = rows;
-  localStorage.setItem(ITEM_ROWS_KEY, String(rows));
+  const n = Number(rows);
+  if (!ITEM_ROWS_OPTIONS.includes(n)) return;
+  state.itemRows = n;
+  localStorage.setItem(ITEM_ROWS_KEY, String(n));
   render();
 }
 
 function itemLayoutMeta(n = state.items.length) {
-  const rowMax = state.itemRows || 3;
+  const rowMax = Number(state.itemRows) || 3;
   if (n <= 0) return { rows: 0, cols: 0 };
   if (n <= rowMax) return { rows: n, cols: 1 };
   return { rows: rowMax, cols: Math.ceil(n / rowMax) };
@@ -1438,6 +1440,25 @@ function renderLogin(notice) {
   bindInstallButtons();
 }
 
+function renderItemRow(it, i) {
+  const inActive = state.focus?.index === i && state.focus.field === "in";
+  const outActive = state.focus?.index === i && state.focus.field === "out";
+  const inDisp = inActive ? (state.buffer || "0") : (it.inQty !== "" ? it.inQty : "—");
+  const outDisp = outActive ? (state.buffer || "0") : (it.outQty !== "" ? it.outQty : "—");
+  const inNum = inActive
+    ? (state.buffer === "" ? null : (parseInt(state.buffer, 10) || 0))
+    : (it.inQty === "" ? null : (parseInt(it.inQty, 10) || 0));
+  const outNum = outActive
+    ? (state.buffer === "" ? null : (parseInt(state.buffer, 10) || 0))
+    : (it.outQty === "" ? null : (parseInt(it.outQty, 10) || 0));
+  const outMismatch = inNum !== null && outNum !== null && inNum !== outNum;
+  return `<div class="item-row${inActive || outActive ? " active" : ""}">
+    <div class="item-main"><span class="item-name">${esc(it.name)}</span>${it.adhoc ? `<span class="item-badge">臨時</span>` : ""}${it.code ? `<span class="item-code">${esc(it.code)}</span>` : ""}${it.adhoc ? `<button type="button" class="item-row-remove" data-remove-item="${i}" aria-label="臨時品目を削除">×</button>` : ""}</div>
+    <div class="qty-cell in-col${inActive ? " active-in" : ""}${it.inQty === "" && !inActive ? " empty" : ""}" data-i="${i}" data-f="in">${esc(String(inDisp))}</div>
+    <div class="qty-cell out-col${outActive ? " active-out" : ""}${it.outQty === "" && !outActive ? " empty" : ""}${outMismatch ? " mismatch" : ""}" data-i="${i}" data-f="out">${esc(String(outDisp))}</div>
+  </div>`;
+}
+
 function renderInputTab() {
   const custOpts = renderCustomerSelectOptions(state.customer);
   const layout = itemLayoutMeta();
@@ -1445,27 +1466,20 @@ function renderInputTab() {
   const head = layout.cols > 0
     ? `<div class="list-head col-flow">${Array.from({ length: layout.cols }, () => headUnit).join("")}</div>`
     : "";
-  const rows = state.items.length === 0
-    ? `<div class="empty">${state.customer ? "品目がありません" : "客先を選択してください"}</div>`
-    : `${head}
-       <div class="item-list col-flow" style="--item-rows:${layout.rows}">${state.items.map((it, i) => {
-         const inActive = state.focus?.index === i && state.focus.field === "in";
-         const outActive = state.focus?.index === i && state.focus.field === "out";
-         const inDisp = inActive ? (state.buffer || "0") : (it.inQty !== "" ? it.inQty : "—");
-         const outDisp = outActive ? (state.buffer || "0") : (it.outQty !== "" ? it.outQty : "—");
-         const inNum = inActive
-           ? (state.buffer === "" ? null : (parseInt(state.buffer, 10) || 0))
-           : (it.inQty === "" ? null : (parseInt(it.inQty, 10) || 0));
-         const outNum = outActive
-           ? (state.buffer === "" ? null : (parseInt(state.buffer, 10) || 0))
-           : (it.outQty === "" ? null : (parseInt(it.outQty, 10) || 0));
-         const outMismatch = inNum !== null && outNum !== null && inNum !== outNum;
-         return `<div class="item-row${inActive || outActive ? " active" : ""}">
-           <div class="item-main"><span class="item-name">${esc(it.name)}</span>${it.adhoc ? `<span class="item-badge">臨時</span>` : ""}${it.code ? `<span class="item-code">${esc(it.code)}</span>` : ""}${it.adhoc ? `<button type="button" class="item-row-remove" data-remove-item="${i}" aria-label="臨時品目を削除">×</button>` : ""}</div>
-           <div class="qty-cell in-col${inActive ? " active-in" : ""}${it.inQty === "" && !inActive ? " empty" : ""}" data-i="${i}" data-f="in">${esc(String(inDisp))}</div>
-           <div class="qty-cell out-col${outActive ? " active-out" : ""}${it.outQty === "" && !outActive ? " empty" : ""}${outMismatch ? " mismatch" : ""}" data-i="${i}" data-f="out">${esc(String(outDisp))}</div>
-         </div>`;
-       }).join("")}</div>`;
+
+  let body = "";
+  if (state.items.length === 0) {
+    body = `<div class="empty">${state.customer ? "品目がありません" : "客先を選択してください"}</div>`;
+  } else {
+    const colsHtml = [];
+    for (let c = 0; c < layout.cols; c++) {
+      const start = c * layout.rows;
+      const slice = state.items.slice(start, start + layout.rows);
+      const rowsHtml = slice.map((it, j) => renderItemRow(it, start + j)).join("");
+      colsHtml.push(`<div class="item-col" data-col="${c}">${rowsHtml}</div>`);
+    }
+    body = `${head}<div class="item-list col-flow" data-rows="${layout.rows}">${colsHtml.join("")}</div>`;
+  }
 
   return `
     <div class="input-layout">
@@ -1481,9 +1495,9 @@ function renderInputTab() {
           ? (SKIP_LOGIN && !IS_LOCAL ? "仮運用：この端末のマスタ・履歴のみ（運用開始後にログイン必須へ切替）" : "試用モード：この端末のマスタを使用")
           : "台帳アプリのマスタ（全端末で共有）"}</p>
       </div>
-      <div class="items-panel" style="--iz:${state.itemZoom};--item-rows:${layout.rows || state.itemRows}">
+      <div class="items-panel" style="--iz:${state.itemZoom}">
         <button type="button" class="scroll-btn" id="scroll-up" aria-label="上へスクロール">▲ 上へ</button>
-        <div class="card items-scroll" id="items-scroll">${rows}</div>
+        <div class="card items-scroll" id="items-scroll">${body}</div>
         <button type="button" class="scroll-btn" id="scroll-down" aria-label="下へスクロール">▼ 下へ</button>
       </div>
     </div>`;
