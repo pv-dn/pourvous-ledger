@@ -172,6 +172,19 @@ select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;borde
 .master-form-panel input{width:100%;padding:11px;border:1px solid #ddd;border-radius:8px;font-size:15px;font-family:inherit;margin-bottom:10px}
 .master-form-actions{display:flex;gap:8px;margin-top:6px}
 .master-form-actions .btn{flex:1;padding:12px}
+.item-add-btn{width:100%;margin-top:8px;padding:10px;border:1px dashed #5b9bd5;border-radius:8px;background:#f0f7fc;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#0288D1}
+.item-add-btn:disabled{opacity:.4;cursor:not-allowed}
+.item-add-panel{background:#fff;border-radius:16px;width:100%;max-width:520px;max-height:85vh;overflow:auto;padding:20px}
+.item-add-tabs{display:flex;gap:6px;margin-bottom:12px}
+.item-add-tab{flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#666}
+.item-add-tab.active{background:#0288D1;color:#fff;border-color:#0288D1}
+.item-add-search-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;max-height:40vh;overflow:auto}
+.item-add-hit{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border:1px solid #e8e6e0;border-radius:8px;background:#faf9f7;cursor:pointer;font-family:inherit;text-align:left;width:100%}
+.item-add-hit:active{background:#e8f4fc}
+.item-add-hit-title{font-size:14px;font-weight:700}
+.item-add-hit-meta{font-size:11px;color:#888;margin-top:2px}
+.item-badge{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:6px;background:#fff3e0;color:#e65100;vertical-align:middle}
+.item-row-remove{border:none;background:#fff3e0;color:#c62828;border-radius:6px;padding:4px 8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0}
 </style>
 </head>
 <body>
@@ -609,6 +622,11 @@ const state = {
   loading: false,
   itemZoom: loadItemZoom(),
   itemRows: loadItemRows(),
+  itemAddOpen: false,
+  itemAddTab: "free",
+  itemAddQuery: "",
+  itemAddName: "",
+  itemAddToMaster: true,
   masterSection: "customers",
   masterCustomer: "",
   masterForm: null,
@@ -1100,6 +1118,7 @@ function selectCustomer(name) {
   applyBuffer();
   state.focus = null;
   state.buffer = "";
+  state.itemAddOpen = false;
   if (!name) {
     state.customer = "";
     state.items = [];
@@ -1107,6 +1126,111 @@ function selectCustomer(name) {
     return;
   }
   loadCustomerItems(name);
+  render();
+}
+
+function openItemAdd(tab = "free") {
+  if (!state.customer) {
+    toast("先に客先を選択してください", "error");
+    return;
+  }
+  applyBuffer();
+  state.itemAddOpen = true;
+  state.itemAddTab = tab;
+  state.itemAddQuery = "";
+  state.itemAddName = "";
+  state.itemAddToMaster = true;
+  state.focus = null;
+  state.buffer = "";
+  render();
+}
+
+function closeItemAdd() {
+  state.itemAddOpen = false;
+  render();
+}
+
+function searchMasterItems(q) {
+  const query = String(q || "").trim().toLowerCase();
+  const seen = new Set();
+  const hits = [];
+  for (const p of state.prices) {
+    const name = (p.name || "").trim();
+    if (!name) continue;
+    const key = `${name}\t${(p.code || "").trim()}`;
+    if (seen.has(key)) continue;
+    if (query && !name.toLowerCase().includes(query) && !(p.code || "").toLowerCase().includes(query)) continue;
+    if (state.items.some(it => it.name === name)) continue;
+    seen.add(key);
+    hits.push({
+      name,
+      code: p.code || "",
+      fromCustomer: p.customer || "",
+      alreadyOnCustomer: state.prices.some(x => x.customer === state.customer && x.name === name)
+    });
+    if (hits.length >= 50) break;
+  }
+  return hits;
+}
+
+async function addItemToInput(name, { code = "", toMaster = false } = {}) {
+  if (!state.customer) {
+    toast("先に客先を選択してください", "error");
+    return;
+  }
+  name = String(name || "").trim();
+  if (!name) {
+    toast("品名を入力してください", "error");
+    return;
+  }
+  if (state.items.some(it => it.name === name)) {
+    toast("すでに一覧にあります", "error");
+    return;
+  }
+  let itemCode = code || "";
+  let adhoc = true;
+  if (toMaster) {
+    itemCode = normalizeItemCode(itemCode, { assignIfEmpty: true });
+    if (!state.prices.some(p => p.customer === state.customer && p.name === name)) {
+      state.prices.push({ customer: state.customer, code: itemCode, name });
+      try {
+        await persistLedgerMaster();
+      } catch (e) {
+        console.error(e);
+        toast("マスタへの登録に失敗しました", "error");
+        return;
+      }
+    } else {
+      const existing = state.prices.find(p => p.customer === state.customer && p.name === name);
+      itemCode = existing?.code || itemCode;
+    }
+    adhoc = false;
+  }
+  state.items.push({
+    code: itemCode || "",
+    name,
+    inQty: "",
+    outQty: "",
+    adhoc
+  });
+  state.itemAddOpen = false;
+  state.focus = { index: state.items.length - 1, field: "in" };
+  state.buffer = "";
+  toast(toMaster ? "品目を追加しマスタにも登録しました" : "品目を追加しました");
+  render();
+}
+
+function removeInputItem(index) {
+  applyBuffer();
+  if (index < 0 || index >= state.items.length) return;
+  const it = state.items[index];
+  if (!it.adhoc) {
+    toast("マスタ品目は一覧から削除できません（数量を空のままにしてください）", "error");
+    return;
+  }
+  state.items.splice(index, 1);
+  state.focus = null;
+  state.buffer = "";
   render();
 }
 
@@ -1171,7 +1295,7 @@ function isTypingInFormField(el) {
 /** キーボードEnter／数字もテンキーと同じ（Enterで縦に進む） */
 function onAppKeyDown(e) {
   if (!isActiveSession() || state.tab !== 0 || state.loading) return;
-  if (state.detail || state.invoiceMemo || state.masterForm) return;
+  if (state.detail || state.invoiceMemo || state.masterForm || state.itemAddOpen) return;
   if (isTypingInFormField(document.activeElement) || isTypingInFormField(e.target)) return;
   if (!state.focus) return;
 
@@ -1337,7 +1461,7 @@ function renderInputTab() {
            : (it.outQty === "" ? null : (parseInt(it.outQty, 10) || 0));
          const outMismatch = inNum !== null && outNum !== null && inNum !== outNum;
          return `<div class="item-row${inActive || outActive ? " active" : ""}">
-           <div class="item-main"><span class="item-name">${esc(it.name)}</span>${it.code ? `<span class="item-code">${esc(it.code)}</span>` : ""}</div>
+           <div class="item-main"><span class="item-name">${esc(it.name)}</span>${it.adhoc ? `<span class="item-badge">臨時</span>` : ""}${it.code ? `<span class="item-code">${esc(it.code)}</span>` : ""}${it.adhoc ? `<button type="button" class="item-row-remove" data-remove-item="${i}" aria-label="臨時品目を削除">×</button>` : ""}</div>
            <div class="qty-cell in-col${inActive ? " active-in" : ""}${it.inQty === "" && !inActive ? " empty" : ""}" data-i="${i}" data-f="in">${esc(String(inDisp))}</div>
            <div class="qty-cell out-col${outActive ? " active-out" : ""}${it.outQty === "" && !outActive ? " empty" : ""}${outMismatch ? " mismatch" : ""}" data-i="${i}" data-f="out">${esc(String(outDisp))}</div>
          </div>`;
@@ -1352,6 +1476,7 @@ function renderInputTab() {
           <div><label class="lbl">納品日</label>
             <input type="date" id="delivery-date" value="${state.deliveryDate || todayInput()}"></div>
         </div>
+        <button type="button" class="item-add-btn" id="btn-item-add" ${state.customer ? "" : "disabled"}>＋ 品目を追加（自由入力 / マスタ検索）</button>
         <p class="sync-note">${state.demoMode
           ? (SKIP_LOGIN && !IS_LOCAL ? "仮運用：この端末のマスタ・履歴のみ（運用開始後にログイン必須へ切替）" : "試用モード：この端末のマスタを使用")
           : "台帳アプリのマスタ（全端末で共有）"}</p>
@@ -1360,6 +1485,56 @@ function renderInputTab() {
         <button type="button" class="scroll-btn" id="scroll-up" aria-label="上へスクロール">▲ 上へ</button>
         <div class="card items-scroll" id="items-scroll">${rows}</div>
         <button type="button" class="scroll-btn" id="scroll-down" aria-label="下へスクロール">▼ 下へ</button>
+      </div>
+    </div>`;
+}
+
+function renderItemAddPanel() {
+  if (!state.itemAddOpen) return "";
+  const free = state.itemAddTab === "free";
+  const hits = free ? [] : searchMasterItems(state.itemAddQuery);
+  const hitRows = hits.length
+    ? hits.map((h, i) => `
+      <button type="button" class="item-add-hit" data-add-hit="${i}">
+        <div>
+          <div class="item-add-hit-title">${esc(h.name)}</div>
+          <div class="item-add-hit-meta">${h.code ? `コード ${esc(h.code)} · ` : ""}${h.fromCustomer ? esc(h.fromCustomer) : ""}${h.alreadyOnCustomer ? " · この客先マスタにあり" : ""}</div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:#0288D1">追加</span>
+      </button>`).join("")
+    : `<div class="empty" style="padding:20px">${state.itemAddQuery.trim() ? "該当なし" : "キーワードを入力して検索"}</div>`;
+
+  return `
+    <div class="detail-overlay" id="item-add-overlay">
+      <div class="item-add-panel">
+        <h3 style="font-size:17px;margin-bottom:12px">品目を追加</h3>
+        <div class="item-add-tabs">
+          <button type="button" class="item-add-tab${free ? " active" : ""}" data-item-add-tab="free">自由入力</button>
+          <button type="button" class="item-add-tab${!free ? " active" : ""}" data-item-add-tab="search">マスタ検索</button>
+        </div>
+        ${free ? `
+          <label class="lbl">品名</label>
+          <input type="text" id="item-add-name" value="${esc(state.itemAddName)}" placeholder="例：貸出シーツ（臨時）" autofocus>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0 14px;cursor:pointer">
+            <input type="checkbox" id="item-add-to-master" ${state.itemAddToMaster ? "checked" : ""} style="width:18px;height:18px">
+            この客先のマスタにも登録する
+          </label>
+          <div class="master-form-actions">
+            <button type="button" class="btn btn-ghost" id="item-add-cancel" style="background:#f4f3ef;color:#1a1a2e">キャンセル</button>
+            <button type="button" class="btn btn-primary" id="item-add-save">追加</button>
+          </div>
+        ` : `
+          <label class="lbl">検索（品名・コード）</label>
+          <input type="text" id="item-add-query" value="${esc(state.itemAddQuery)}" placeholder="キーワード" autofocus>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0 4px;cursor:pointer">
+            <input type="checkbox" id="item-add-to-master" ${state.itemAddToMaster ? "checked" : ""} style="width:18px;height:18px">
+            この客先のマスタにも登録する
+          </label>
+          <div class="item-add-search-list">${hitRows}</div>
+          <div class="master-form-actions" style="margin-top:12px">
+            <button type="button" class="btn btn-ghost" id="item-add-cancel" style="background:#f4f3ef;color:#1a1a2e">閉じる</button>
+          </div>
+        `}
       </div>
     </div>`;
 }
@@ -1615,13 +1790,15 @@ function render() {
     </div>
     ${state.detail ? renderDetail(state.detail) : ""}
     ${state.invoiceMemo ? renderInvoiceMemo(state.invoiceMemo) : ""}
-    ${state.masterForm ? renderMasterForm() : ""}`;
+    ${state.masterForm ? renderMasterForm() : ""}
+    ${state.itemAddOpen ? renderItemAddPanel() : ""}`;
 
   document.querySelectorAll(".header-tab").forEach(btn => {
     btn.onclick = async () => {
       state.tab = +btn.dataset.tab;
       state.focus = null;
       state.masterForm = null;
+      state.itemAddOpen = false;
       if (state.tab === 1 && !state.demoMode && !state.loading) {
         try { await loadLedgersFromCloud(); } catch {}
       }
@@ -1664,6 +1841,14 @@ function render() {
     document.querySelectorAll(".qty-cell").forEach(el => {
       el.onclick = () => setFocus(+el.dataset.i, el.dataset.f);
     });
+    document.querySelectorAll("[data-remove-item]").forEach(btn => {
+      btn.onclick = e => {
+        e.stopPropagation();
+        removeInputItem(+btn.dataset.removeItem);
+      };
+    });
+    const itemAddBtn = document.getElementById("btn-item-add");
+    if (itemAddBtn) itemAddBtn.onclick = () => openItemAdd("free");
 
     const scrollEl = document.getElementById("items-scroll");
     const scrollUp = document.getElementById("scroll-up");
@@ -1673,6 +1858,59 @@ function render() {
       scrollUp.onclick = () => scrollEl.scrollBy({ top: -scrollStep(), behavior: "smooth" });
       scrollDown.onclick = () => scrollEl.scrollBy({ top: scrollStep(), behavior: "smooth" });
     }
+  }
+
+  const itemAddOverlay = document.getElementById("item-add-overlay");
+  if (itemAddOverlay) {
+    itemAddOverlay.onclick = e => { if (e.target === itemAddOverlay) closeItemAdd(); };
+    document.querySelectorAll("[data-item-add-tab]").forEach(btn => {
+      btn.onclick = () => {
+        state.itemAddTab = btn.dataset.itemAddTab;
+        render();
+      };
+    });
+    const cancel = document.getElementById("item-add-cancel");
+    if (cancel) cancel.onclick = () => closeItemAdd();
+    const toMaster = document.getElementById("item-add-to-master");
+    if (toMaster) toMaster.onchange = e => { state.itemAddToMaster = e.target.checked; };
+    const nameInput = document.getElementById("item-add-name");
+    if (nameInput) {
+      nameInput.oninput = e => { state.itemAddName = e.target.value; };
+      nameInput.onkeydown = e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          addItemToInput(nameInput.value, { toMaster: state.itemAddToMaster });
+        }
+      };
+    }
+    const saveFree = document.getElementById("item-add-save");
+    if (saveFree) {
+      saveFree.onclick = () => addItemToInput(
+        document.getElementById("item-add-name")?.value || "",
+        { toMaster: state.itemAddToMaster }
+      );
+    }
+    const queryInput = document.getElementById("item-add-query");
+    if (queryInput) {
+      queryInput.oninput = e => {
+        state.itemAddQuery = e.target.value;
+        render();
+        const q = document.getElementById("item-add-query");
+        if (q) {
+          q.focus();
+          const len = q.value.length;
+          q.setSelectionRange(len, len);
+        }
+      };
+    }
+    const hits = searchMasterItems(state.itemAddQuery);
+    document.querySelectorAll("[data-add-hit]").forEach(btn => {
+      btn.onclick = () => {
+        const hit = hits[+btn.dataset.addHit];
+        if (!hit) return;
+        addItemToInput(hit.name, { code: hit.code, toMaster: state.itemAddToMaster });
+      };
+    });
   }
 
   const saveBtn = document.getElementById("btn-save");
