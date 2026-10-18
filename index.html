@@ -35,21 +35,22 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 .zoom-label{font-size:11px;min-width:38px;text-align:center;opacity:.9}
 .items-panel.fit-all .scroll-btn{display:none}
 .items-panel.fit-all .items-scroll{overflow:hidden;display:flex;flex-direction:column;flex:1;min-height:0}
-.items-panel.fit-all .item-list{flex:1;min-height:0;display:flex;flex-direction:column}
-.items-panel.fit-all .item-row{flex:1 1 0;min-height:0;padding:1px 4px;gap:10px;display:grid;grid-template-columns:minmax(0,1fr) auto auto minmax(0,1fr);align-items:center;width:100%}
+.items-panel.fit-all .item-list{flex:1;min-height:0}
+.items-panel.fit-all .item-list.col-flow{grid-template-rows:repeat(var(--item-rows,15),minmax(0,1fr));height:100%;align-content:stretch}
+.items-panel.fit-all .item-row{min-height:0;padding:1px 4px;gap:8px}
 .items-panel.fit-all .item-code{display:none}
-.items-panel.fit-all .item-main{min-width:0}
 .items-panel.fit-all .item-name{font-size:var(--fit-name-fs,16px);line-height:1.1}
 .items-panel.fit-all .qty-cell{width:var(--fit-qty-w,56px);height:auto;min-height:0;align-self:stretch;font-size:var(--fit-qty-fs,18px);padding:0 2px;border-radius:4px}
 .items-panel.fit-all .qty-cell.empty{font-size:var(--fit-qty-fs,18px)}
-.items-panel.fit-all .list-head{display:grid;grid-template-columns:minmax(0,1fr) auto auto minmax(0,1fr);gap:10px;width:100%;flex-shrink:0;padding-bottom:2px;font-size:11px}
-.items-panel.fit-all .list-head span:first-child{min-width:0}
-.items-panel.fit-all .list-head span:not(:first-child){width:var(--fit-qty-w,56px)}
-.items-panel.fit-all.fit-cols-2 .item-list{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:0 10px;align-content:stretch}
-.items-panel.fit-all.fit-cols-2 .item-row{flex:initial;display:grid;grid-template-columns:minmax(0,1fr) var(--fit-qty-w,56px) var(--fit-qty-w,56px);gap:4px}
-.items-panel.fit-all.fit-cols-2 .list-head{display:grid;grid-template-columns:minmax(0,1fr) var(--fit-qty-w,56px) var(--fit-qty-w,56px) minmax(0,1fr) var(--fit-qty-w,56px) var(--fit-qty-w,56px);gap:4px 8px}
-.items-panel.fit-all.fit-cols-2 .list-head span{width:auto}
-.items-panel.fit-all.fit-cols-2 .list-head span:nth-child(4){text-align:left}
+.items-panel.fit-all .list-head{flex-shrink:0;padding-bottom:2px;font-size:11px}
+.item-list.col-flow{display:grid;grid-template-rows:repeat(var(--item-rows,15),auto);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);column-gap:14px;align-content:start}
+.item-list.col-flow .item-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(8px * var(--iz));width:100%;max-width:none}
+.item-list.col-flow .item-row:first-of-type{border-top:1px solid #eceae4}
+.list-head.col-flow{display:grid;grid-auto-flow:column;grid-template-rows:auto;grid-auto-columns:minmax(0,1fr);column-gap:14px;width:100%}
+.list-head.col-flow .list-head-unit{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(8px * var(--iz));align-items:center;padding:0 calc(5px * var(--iz)) calc(3px * var(--iz));font-size:calc(13px * var(--iz));font-weight:700;color:#888;text-align:center}
+.list-head.col-flow .list-head-unit span:first-child{text-align:left}
+.list-head.col-flow .list-head-unit span:not(:first-child){width:calc(72px * var(--iz))}
+.items-panel.fit-all .list-head.col-flow .list-head-unit span:not(:first-child){width:var(--fit-qty-w,56px)}
 .btn{border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
 .btn-ghost{background:rgba(255,255,255,.22);color:#fff}
 .btn-primary{background:#e8d5b7;color:#1a1a2e}
@@ -530,6 +531,14 @@ const ZOOM_KEY = "lg_itemZoom";
 const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 1.5;
 const ZOOM_STEP = 0.1;
+/** 品目リストは縦15行で左列→右列へ */
+const ITEM_COL_ROWS = 15;
+
+function itemLayoutMeta(n = state.items.length) {
+  if (n <= 0) return { rows: 0, cols: 0 };
+  if (n <= ITEM_COL_ROWS) return { rows: n, cols: 1 };
+  return { rows: ITEM_COL_ROWS, cols: Math.ceil(n / ITEM_COL_ROWS) };
+}
 
 function loadItemZoom() {
   const v = parseFloat(localStorage.getItem(ZOOM_KEY));
@@ -538,9 +547,10 @@ function loadItemZoom() {
 
 function updateZoomControls() {
   const label = document.querySelector(".zoom-label");
+  const layout = itemLayoutMeta();
   if (label) {
     label.textContent = state.fitAllMode
-      ? (state.fitCols > 1 ? "全体·2列" : "全体")
+      ? (layout.cols > 1 ? `全体·${layout.cols}列` : "全体")
       : `${Math.round(state.itemZoom * 100)}%`;
   }
   const out = document.getElementById("btn-zoom-out");
@@ -564,30 +574,27 @@ function setItemZoom(next, { persist = true } = {}) {
   updateZoomControls();
 }
 
-/** 全体表示: 行を画面高さに均等配置。収まらなければ2列へ */
+/** 全体表示: 15行×列の高さに合わせて文字サイズを調整 */
 function applyFitAllZoom() {
   const panel = document.querySelector(".items-panel");
   const scrollEl = document.getElementById("items-scroll");
   if (!panel || !scrollEl || !state.items.length) return;
 
-  const n = state.items.length;
+  const layout = itemLayoutMeta();
   const head = scrollEl.querySelector(".list-head");
   const avail = Math.max(80, scrollEl.clientHeight - (head?.offsetHeight || 22) - 4);
-  const MIN_ROW = 34;
-  const cols = (n > 8 && avail / n < MIN_ROW) ? 2 : 1;
-  const rowCount = Math.ceil(n / cols);
-  const rowH = avail / rowCount;
+  const rowH = avail / Math.max(1, layout.rows);
 
-  if (state.fitCols !== cols) {
-    state.fitCols = cols;
+  if (state.fitCols !== layout.cols) {
+    state.fitCols = layout.cols;
     render();
     return;
   }
 
-  panel.classList.toggle("fit-cols-2", cols === 2);
-  const nameFs = Math.max(12, Math.min(22, rowH * 0.42));
-  const qtyFs = Math.max(13, Math.min(24, rowH * 0.5));
-  const qtyW = Math.max(48, Math.min(72, rowH * 1.35 + 20));
+  panel.style.setProperty("--item-rows", String(layout.rows));
+  const nameFs = Math.max(11, Math.min(20, rowH * 0.42));
+  const qtyFs = Math.max(12, Math.min(22, rowH * 0.5));
+  const qtyW = Math.max(44, Math.min(68, rowH * 1.2 + 18));
   panel.style.setProperty("--fit-name-fs", `${Math.round(nameFs * 10) / 10}px`);
   panel.style.setProperty("--fit-qty-fs", `${Math.round(qtyFs * 10) / 10}px`);
   panel.style.setProperty("--fit-qty-w", `${Math.round(qtyW)}px`);
@@ -602,7 +609,7 @@ function enterFitAll() {
   }
   if (!state.fitAllMode) state.zoomBeforeFit = state.itemZoom;
   state.fitAllMode = true;
-  state.fitCols = 1;
+  state.fitCols = itemLayoutMeta().cols;
   render();
 }
 
@@ -610,7 +617,7 @@ function exitFitAll() {
   if (!state.fitAllMode) return;
   const restore = state.zoomBeforeFit ?? 1;
   state.fitAllMode = false;
-  state.fitCols = 1;
+  state.fitCols = itemLayoutMeta().cols;
   state.zoomBeforeFit = null;
   state.itemZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, restore));
   localStorage.setItem(ZOOM_KEY, String(state.itemZoom));
@@ -1371,14 +1378,15 @@ function renderLogin(notice) {
 
 function renderInputTab() {
   const custOpts = renderCustomerSelectOptions(state.customer);
-
-  const head = state.fitAllMode && state.fitCols > 1
-    ? `<div class="list-head"><span>品名</span><span>入</span><span>出</span><span>品名</span><span>入</span><span>出</span></div>`
-    : `<div class="list-head"><span>品名</span><span>入</span><span>出</span></div>`;
+  const layout = itemLayoutMeta();
+  const headUnit = `<div class="list-head-unit"><span>品名</span><span>入</span><span>出</span></div>`;
+  const head = layout.cols > 0
+    ? `<div class="list-head col-flow">${Array.from({ length: layout.cols }, () => headUnit).join("")}</div>`
+    : "";
   const rows = state.items.length === 0
     ? `<div class="empty">${state.customer ? "品目がありません" : "客先を選択してください"}</div>`
     : `${head}
-       <div class="item-list">${state.items.map((it, i) => {
+       <div class="item-list col-flow" style="--item-rows:${layout.rows}">${state.items.map((it, i) => {
          const inActive = state.focus?.index === i && state.focus.field === "in";
          const outActive = state.focus?.index === i && state.focus.field === "out";
          const inDisp = inActive ? (state.buffer || "0") : (it.inQty !== "" ? it.inQty : "—");
@@ -1410,7 +1418,7 @@ function renderInputTab() {
           ? (SKIP_LOGIN && !IS_LOCAL ? "仮運用：この端末のマスタ・履歴のみ（運用開始後にログイン必須へ切替）" : "試用モード：この端末のマスタを使用")
           : "台帳アプリのマスタ（全端末で共有）"}</p>
       </div>
-      <div class="items-panel${state.fitAllMode ? " fit-all" : ""}${state.fitAllMode && state.fitCols > 1 ? " fit-cols-2" : ""}" style="--iz:${state.fitAllMode ? 1 : state.itemZoom}">
+      <div class="items-panel${state.fitAllMode ? " fit-all" : ""}" style="--iz:${state.fitAllMode ? 1 : state.itemZoom};--item-rows:${layout.rows || 15}">
         <button type="button" class="scroll-btn" id="scroll-up" aria-label="上へスクロール">▲ 上へ</button>
         <div class="card items-scroll" id="items-scroll">${rows}</div>
         <button type="button" class="scroll-btn" id="scroll-down" aria-label="下へスクロール">▼ 下へ</button>
@@ -1637,7 +1645,7 @@ function render() {
           <div class="zoom-controls${state.tab === 0 ? "" : " hidden"}">
             <button type="button" class="btn btn-ghost btn-zoom btn-fit" id="btn-fit-all">${state.fitAllMode ? "解除" : "全体表示"}</button>
             <button type="button" class="btn btn-ghost btn-zoom" id="btn-zoom-out" aria-label="品目を縮小" ${state.fitAllMode || state.itemZoom <= ZOOM_MIN ? "disabled" : ""}>−</button>
-            <span class="zoom-label">${state.fitAllMode ? (state.fitCols > 1 ? "全体·2列" : "全体") : `${Math.round(state.itemZoom * 100)}%`}</span>
+            <span class="zoom-label">${state.fitAllMode ? (itemLayoutMeta().cols > 1 ? `全体·${itemLayoutMeta().cols}列` : "全体") : `${Math.round(state.itemZoom * 100)}%`}</span>
             <button type="button" class="btn btn-ghost btn-zoom" id="btn-zoom-in" aria-label="品目を拡大" ${state.fitAllMode || state.itemZoom >= ZOOM_MAX ? "disabled" : ""}>＋</button>
           </div>
           <button type="button" class="btn btn-ghost install-btn hidden" id="btn-install">インストール</button>
