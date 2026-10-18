@@ -38,11 +38,14 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 .btn-col-mode.active{background:#fff;color:#0288D1}
 .item-list.col-flow{display:flex;flex-direction:row;align-items:flex-start;gap:16px;width:100%;box-sizing:border-box}
 .item-col{display:flex;flex-direction:column;flex:1 1 0;min-width:0}
-.item-col .list-head-unit{display:grid;grid-template-columns:minmax(0,1fr) calc(72px * var(--iz)) calc(72px * var(--iz));gap:calc(8px * var(--iz));align-items:center;width:100%;padding:0 calc(5px * var(--iz)) calc(4px * var(--iz));font-size:calc(13px * var(--iz));font-weight:700;color:#888;text-align:center;box-sizing:border-box;flex-shrink:0}
+.item-col .list-head-unit{display:grid;grid-template-columns:minmax(0,1fr) var(--qty-w,72px) var(--qty-w,72px);gap:8px;align-items:center;width:100%;height:var(--head-h,22px);padding:0 5px 2px;font-size:var(--head-fs,12px);font-weight:700;color:#888;text-align:center;box-sizing:border-box;flex-shrink:0}
 .item-col .list-head-unit span:first-child{text-align:left}
-.item-col .item-row{display:grid;grid-template-columns:minmax(0,1fr) calc(72px * var(--iz)) calc(72px * var(--iz));gap:calc(8px * var(--iz));width:100%;flex:0 0 auto;min-height:calc(48px * var(--iz));align-items:center;padding:calc(4px * var(--iz)) calc(5px * var(--iz));box-sizing:border-box}
+.item-col .item-row{display:grid;grid-template-columns:minmax(0,1fr) var(--qty-w,72px) var(--qty-w,72px);gap:8px;width:100%;flex:0 0 auto;height:var(--row-h,48px);min-height:var(--row-h,48px);max-height:var(--row-h,48px);align-items:center;padding:0 5px;box-sizing:border-box}
 .item-col .item-row:first-of-type{border-top:1px solid #eceae4}
-.item-col .qty-cell{width:calc(72px * var(--iz));max-width:calc(72px * var(--iz))}
+.item-col .item-name{font-size:var(--name-fs,18px);line-height:1.1}
+.item-col .item-code{font-size:var(--code-fs,11px)}
+.item-col .qty-cell{width:var(--qty-w,72px);max-width:var(--qty-w,72px);height:var(--qty-h,40px);min-height:0;font-size:var(--qty-fs,20px)}
+.item-col .qty-cell.empty{font-size:var(--qty-fs,20px)}
 .btn{border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
 .btn-ghost{background:rgba(255,255,255,.22);color:#fff}
 .btn-primary{background:#e8d5b7;color:#1a1a2e}
@@ -284,7 +287,7 @@ function bindInstallButtons() {
 
 function registerServiceWorkerLater() {
   if (!("serviceWorker" in navigator)) return;
-  const run = () => navigator.serviceWorker.register("./sw.js?v=7", { updateViaCache: "none" }).catch(() => {});
+  const run = () => navigator.serviceWorker.register("./sw.js?v=8", { updateViaCache: "none" }).catch(() => {});
   if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 5000 });
   else setTimeout(run, 3000);
 }
@@ -538,10 +541,12 @@ const ZOOM_MAX = 1.5;
 const ZOOM_STEP = 0.1;
 const ITEM_COLS_KEY = "lg_itemCols";
 const ITEM_COLS_OPTIONS = [2, 3, 4];
+/** 2列表示で画面に収める基準行数（タブレット高さに合わせて行高を決める） */
+const BASE_VISIBLE_ROWS = 15;
 
 function loadItemCols() {
   const v = parseInt(localStorage.getItem(ITEM_COLS_KEY), 10);
-  return ITEM_COLS_OPTIONS.includes(v) ? v : 3;
+  return ITEM_COLS_OPTIONS.includes(v) ? v : 2;
 }
 
 function setItemCols(cols) {
@@ -565,12 +570,36 @@ function itemLayoutMeta(n = state.items.length) {
   return { rows, cols, colMax };
 }
 
-/** 列レイアウトの高さ指定をクリア（行をつぶさず縦スクロール） */
+/**
+ * 2列×15行が画面に収まる行高を基準にする。
+ * ズームは行高に掛け算。3・4列も同じ行高を共用。
+ */
 function applyItemColLayout() {
-  const list = document.querySelector(".item-list.col-flow");
-  if (!list) return;
-  list.style.height = "";
-  list.querySelectorAll(".item-col").forEach(col => { col.style.height = ""; });
+  const panel = document.querySelector(".items-panel");
+  const scroll = document.getElementById("items-scroll");
+  if (!panel || !scroll) return;
+
+  const total = Math.floor(scroll.clientHeight - 4);
+  if (total < 100) return;
+
+  const zoom = Number(state.itemZoom) || 1;
+  const headH = Math.max(18, Math.min(28, Math.round(total * 0.045)));
+  const rowH = Math.max(28, Math.min(64, Math.round(((total - headH) / BASE_VISIBLE_ROWS) * zoom * 10) / 10));
+  const qtyH = Math.max(22, Math.min(rowH - 4, Math.round(rowH * 0.82)));
+  const qtyW = Math.max(48, Math.min(76, Math.round(rowH * 1.35 + 10)));
+  const nameFs = Math.max(12, Math.min(22, Math.round(rowH * 0.42 * 10) / 10));
+  const qtyFs = Math.max(13, Math.min(24, Math.round(rowH * 0.48 * 10) / 10));
+  const codeFs = Math.max(10, Math.min(13, Math.round(nameFs * 0.65)));
+  const headFs = Math.max(10, Math.min(13, Math.round(nameFs * 0.7)));
+
+  panel.style.setProperty("--row-h", `${rowH}px`);
+  panel.style.setProperty("--qty-h", `${qtyH}px`);
+  panel.style.setProperty("--qty-w", `${qtyW}px`);
+  panel.style.setProperty("--name-fs", `${nameFs}px`);
+  panel.style.setProperty("--qty-fs", `${qtyFs}px`);
+  panel.style.setProperty("--code-fs", `${codeFs}px`);
+  panel.style.setProperty("--head-fs", `${headFs}px`);
+  panel.style.setProperty("--head-h", `${headH}px`);
 }
 
 function loadItemZoom() {
@@ -596,6 +625,7 @@ function setItemZoom(next, { persist = true } = {}) {
   const panel = document.querySelector(".items-panel");
   if (panel) panel.style.setProperty("--iz", state.itemZoom);
   updateZoomControls();
+  applyItemColLayout();
 }
 
 function isLandscape() {
