@@ -289,7 +289,7 @@ function bindInstallButtons() {
 
 function registerServiceWorkerLater() {
   if (!("serviceWorker" in navigator)) return;
-  const run = () => navigator.serviceWorker.register("./sw.js?v=9", { updateViaCache: "none" }).catch(() => {});
+  const run = () => navigator.serviceWorker.register("./sw.js?v=10", { updateViaCache: "none" }).catch(() => {});
   if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 5000 });
   else setTimeout(run, 3000);
 }
@@ -477,64 +477,64 @@ async function deleteMasterGroup(name) {
 }
 
 const DEMO_PRICES = [
-  { customer: "サンプル商事", code: "N001", name: "作業着（上）" },
-  { customer: "サンプル商事", code: "N002", name: "作業着（下）" },
-  { customer: "サンプル商事", code: "N003", name: "エプロン（短）" },
-  { customer: "サンプル商事", code: "N004", name: "エプロン（長）" },
-  { customer: "サンプル商事", code: "N005", name: "タオル（大）" },
-  { customer: "サンプル商事", code: "N006", name: "タオル（中）" },
-  { customer: "サンプル商事", code: "N007", name: "タオル（小）" },
-  { customer: "サンプル商事", code: "N008", name: "手袋" },
-  { customer: "サンプル商事", code: "N009", name: "帽子" },
-  { customer: "サンプル商事", code: "N010", name: "マスク" },
-  { customer: "サンプル商事", code: "N011", name: "白衣（上）" },
-  { customer: "サンプル商事", code: "N012", name: "白衣（下）" },
-  { customer: "サンプル商事", code: "N013", name: "ベスト" },
-  { customer: "サンプル商事", code: "N014", name: "防寒ジャンパー" },
-  { customer: "サンプル商事", code: "N015", name: "ズボン" },
-  { customer: "サンプル商事", code: "N016", name: "シャツ（半袖）" },
-  { customer: "サンプル商事", code: "N017", name: "シャツ（長袖）" },
-  { customer: "サンプル商事", code: "N018", name: "ポロシャツ" },
-  { customer: "サンプル商事", code: "N019", name: "クリーニングバッグ" },
-  { customer: "サンプル商事", code: "N020", name: "ネーム札" },
-  { customer: "サンプル商事", code: "N021", name: "腕章" },
-  { customer: "サンプル商事", code: "N022", name: "腰巻き" },
-  { customer: "サンプル商事", code: "N023", name: "三角巾" },
-  { customer: "サンプル商事", code: "N024", name: "靴下" },
-  { customer: "サンプル商事", code: "N025", name: "軍手" },
-  { customer: "デモレストラン", code: "N001", name: "コックコート" },
-  { customer: "デモレストラン", code: "N002", name: "前掛け（短）" },
-  { customer: "デモレストラン", code: "N003", name: "前掛け（長）" },
-  { customer: "デモレストラン", code: "N004", name: "ナプキン" },
-  { customer: "デモレストラン", code: "N005", name: "テーブルクロス" },
-  { customer: "デモレストラン", code: "N006", name: "ランチョンマット" },
-  { customer: "デモレストラン", code: "N007", name: "座席カバー" },
-  { customer: "デモレストラン", code: "N008", name: "厨房タオル" },
-  { customer: "デモレストラン", code: "N009", name: "ダスター" },
-  { customer: "デモレストラン", code: "N010", name: "三角巾" },
-  { customer: "デモレストラン", code: "N011", name: "ハンバーガー帽" },
-  { customer: "デモレストラン", code: "N012", name: "ホールエプロン" },
-  { customer: "デモレストラン", code: "N013", name: "バンダナ" },
-  { customer: "デモレストラン", code: "N014", name: "ふきん" },
-  { customer: "デモレストラン", code: "N015", name: "厨房靴" },
-  { customer: "テスト病院", code: "N001", name: "患者着（上）" },
-  { customer: "テスト病院", code: "N002", name: "患者着（下）" },
-  { customer: "テスト病院", code: "N003", name: "看護師白衣" },
-  { customer: "テスト病院", code: "N004", name: "看護師ズボン" },
-  { customer: "テスト病院", code: "N005", name: "スクラブ（上）" },
-  { customer: "テスト病院", code: "N006", name: "スクラブ（下）" },
-  { customer: "テスト病院", code: "N007", name: "ガウン" },
-  { customer: "テスト病院", code: "N008", name: "シーツ（シングル）" },
-  { customer: "テスト病院", code: "N009", name: "シーツ（ダブル）" },
-  { customer: "テスト病院", code: "N010", name: "枕カバー" },
-  { customer: "テスト病院", code: "N011", name: "バスタオル" },
-  { customer: "テスト病院", code: "N012", name: "フェイスタオル" },
-  { customer: "テスト病院", code: "N013", name: "バスマット" },
-  { customer: "テスト病院", code: "N014", name: "カーテン" },
-  { customer: "テスト病院", code: "N015", name: "オペ着" },
-  { customer: "テスト病院", code: "N016", name: "帽子（手術用）" },
-  { customer: "テスト病院", code: "N017", name: "マスク（使い捨て）" },
-  { customer: "テスト病院", code: "N018", name: "足袋" }
+  { customer: "サンプル商事", code: "N001", name: "作業着（上）", yomi: "さぎょうぎうえ" },
+  { customer: "サンプル商事", code: "N002", name: "作業着（下）", yomi: "さぎょうぎした" },
+  { customer: "サンプル商事", code: "N003", name: "エプロン（短）", yomi: "えぷろんみじか" },
+  { customer: "サンプル商事", code: "N004", name: "エプロン（長）", yomi: "えぷろんなが" },
+  { customer: "サンプル商事", code: "N005", name: "タオル（大）", yomi: "たおるだい" },
+  { customer: "サンプル商事", code: "N006", name: "タオル（中）", yomi: "たおるちゅう" },
+  { customer: "サンプル商事", code: "N007", name: "タオル（小）", yomi: "たおるしょう" },
+  { customer: "サンプル商事", code: "N008", name: "手袋", yomi: "てぶくろ" },
+  { customer: "サンプル商事", code: "N009", name: "帽子", yomi: "ぼうし" },
+  { customer: "サンプル商事", code: "N010", name: "マスク", yomi: "ますく" },
+  { customer: "サンプル商事", code: "N011", name: "白衣（上）", yomi: "はくいうえ" },
+  { customer: "サンプル商事", code: "N012", name: "白衣（下）", yomi: "はくいした" },
+  { customer: "サンプル商事", code: "N013", name: "ベスト", yomi: "べすと" },
+  { customer: "サンプル商事", code: "N014", name: "防寒ジャンパー", yomi: "ぼうかんじゃんぱー" },
+  { customer: "サンプル商事", code: "N015", name: "ズボン", yomi: "ずぼん" },
+  { customer: "サンプル商事", code: "N016", name: "シャツ（半袖）", yomi: "しゃつはんそで" },
+  { customer: "サンプル商事", code: "N017", name: "シャツ（長袖）", yomi: "しゃつながそで" },
+  { customer: "サンプル商事", code: "N018", name: "ポロシャツ", yomi: "ぽろしゃつ" },
+  { customer: "サンプル商事", code: "N019", name: "クリーニングバッグ", yomi: "くりーにんぐばっぐ" },
+  { customer: "サンプル商事", code: "N020", name: "ネーム札", yomi: "ねーむふだ" },
+  { customer: "サンプル商事", code: "N021", name: "腕章", yomi: "わんしょう" },
+  { customer: "サンプル商事", code: "N022", name: "腰巻き", yomi: "こしまき" },
+  { customer: "サンプル商事", code: "N023", name: "三角巾", yomi: "さんかくきん" },
+  { customer: "サンプル商事", code: "N024", name: "靴下", yomi: "くつした" },
+  { customer: "サンプル商事", code: "N025", name: "軍手", yomi: "ぐんて" },
+  { customer: "デモレストラン", code: "N001", name: "コックコート", yomi: "こっくこーと" },
+  { customer: "デモレストラン", code: "N002", name: "前掛け（短）", yomi: "まえかけみじか" },
+  { customer: "デモレストラン", code: "N003", name: "前掛け（長）", yomi: "まえかけなが" },
+  { customer: "デモレストラン", code: "N004", name: "ナプキン", yomi: "なぷきん" },
+  { customer: "デモレストラン", code: "N005", name: "テーブルクロス", yomi: "てーぶるくろす" },
+  { customer: "デモレストラン", code: "N006", name: "ランチョンマット", yomi: "らんちょんまっと" },
+  { customer: "デモレストラン", code: "N007", name: "座席カバー", yomi: "ざせきかばー" },
+  { customer: "デモレストラン", code: "N008", name: "厨房タオル", yomi: "ちゅうぼうたおる" },
+  { customer: "デモレストラン", code: "N009", name: "ダスター", yomi: "だすたー" },
+  { customer: "デモレストラン", code: "N010", name: "三角巾", yomi: "さんかくきん" },
+  { customer: "デモレストラン", code: "N011", name: "ハンバーガー帽", yomi: "はんばーがーぼう" },
+  { customer: "デモレストラン", code: "N012", name: "ホールエプロン", yomi: "ほーるえぷろん" },
+  { customer: "デモレストラン", code: "N013", name: "バンダナ", yomi: "ばんだな" },
+  { customer: "デモレストラン", code: "N014", name: "ふきん", yomi: "ふきん" },
+  { customer: "デモレストラン", code: "N015", name: "厨房靴", yomi: "ちゅうぼうぐつ" },
+  { customer: "テスト病院", code: "N001", name: "患者着（上）", yomi: "かんじゃぎうえ" },
+  { customer: "テスト病院", code: "N002", name: "患者着（下）", yomi: "かんじゃぎした" },
+  { customer: "テスト病院", code: "N003", name: "看護師白衣", yomi: "かんごしはくい" },
+  { customer: "テスト病院", code: "N004", name: "看護師ズボン", yomi: "かんごしずぼん" },
+  { customer: "テスト病院", code: "N005", name: "スクラブ（上）", yomi: "すくらぶうえ" },
+  { customer: "テスト病院", code: "N006", name: "スクラブ（下）", yomi: "すくらぶした" },
+  { customer: "テスト病院", code: "N007", name: "ガウン", yomi: "がうん" },
+  { customer: "テスト病院", code: "N008", name: "シーツ（シングル）", yomi: "しーつしんぐる" },
+  { customer: "テスト病院", code: "N009", name: "シーツ（ダブル）", yomi: "しーつだぶる" },
+  { customer: "テスト病院", code: "N010", name: "枕カバー", yomi: "まくらかばー" },
+  { customer: "テスト病院", code: "N011", name: "バスタオル", yomi: "ばすたおる" },
+  { customer: "テスト病院", code: "N012", name: "フェイスタオル", yomi: "ふぇいすたおる" },
+  { customer: "テスト病院", code: "N013", name: "バスマット", yomi: "ばすまっと" },
+  { customer: "テスト病院", code: "N014", name: "カーテン", yomi: "かーてん" },
+  { customer: "テスト病院", code: "N015", name: "オペ着", yomi: "おぺぎ" },
+  { customer: "テスト病院", code: "N016", name: "帽子（手術用）", yomi: "ぼうししゅじゅつよう" },
+  { customer: "テスト病院", code: "N017", name: "マスク（使い捨て）", yomi: "ますくつかいすて" },
+  { customer: "テスト病院", code: "N018", name: "足袋", yomi: "たび" }
 ];
 
 const ZOOM_KEY = "lg_itemZoom";
@@ -678,7 +678,9 @@ const state = {
   itemAddOpen: false,
   itemAddTab: "free",
   itemAddQuery: "",
+  itemAddKanaRow: "",
   itemAddName: "",
+  itemAddYomi: "",
   itemAddToMaster: true,
   masterSection: "customers",
   masterCustomer: "",
@@ -883,8 +885,57 @@ function normalizeMasterItems(rows) {
   return (Array.isArray(rows) ? rows : []).map(p => ({
     customer: p.customer || "",
     code: normalizeItemCode(p.code || ""),
-    name: p.name || p.code || "（名称なし）"
+    name: p.name || p.code || "（名称なし）",
+    yomi: normalizeYomiInput(p.yomi || p.kana || "")
   })).filter(p => p.customer && p.name);
+}
+
+/** カタカナ→ひらがな、全角半角を揃える */
+function toHiragana(s) {
+  return String(s || "")
+    .normalize("NFKC")
+    .replace(/[\u30A1-\u30F6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+}
+
+function normalizeYomiInput(s) {
+  return toHiragana(s).replace(/[\s　]/g, "");
+}
+
+function normalizeYomiKey(s) {
+  return normalizeYomiInput(s).replace(/[ー\-]/g, "").toLowerCase();
+}
+
+const KANA_ROW_OPTIONS = [
+  { key: "", label: "行を選択" },
+  { key: "all", label: "すべて" },
+  { key: "あ", label: "あ行", chars: "あいうえおぁぃぅぇぉゔ" },
+  { key: "か", label: "か行", chars: "かきくけこがぎぐげご" },
+  { key: "さ", label: "さ行", chars: "さしすせそざじずぜぞ" },
+  { key: "た", label: "た行", chars: "たちつてとだぢづでどっ" },
+  { key: "な", label: "な行", chars: "なにぬねの" },
+  { key: "は", label: "は行", chars: "はひふへほばびぶべぼぱぴぷぺぽ" },
+  { key: "ま", label: "ま行", chars: "まみむめも" },
+  { key: "や", label: "や行", chars: "やゆよゃゅょ" },
+  { key: "ら", label: "ら行", chars: "らりるれろ" },
+  { key: "わ", label: "わ行", chars: "わをんゎ" },
+  { key: "other", label: "その他" }
+];
+
+/** 読み（なければ品名）からあいうえお行を判定。漢字のみで読みなしは「その他」 */
+function kanaRowOf(yomi, name) {
+  const key = normalizeYomiKey(yomi) || normalizeYomiKey(name);
+  if (!key) return "other";
+  const c = key[0];
+  if (!/[ぁ-ん]/.test(c)) return "other";
+  for (const row of KANA_ROW_OPTIONS) {
+    if (row.chars && row.chars.includes(c)) return row.key;
+  }
+  return "other";
+}
+
+function itemYomiSortKey(p) {
+  const y = normalizeYomiKey(p.yomi) || normalizeYomiKey(p.name);
+  return y || `\uffff${normalizeItemName(p.name)}`;
 }
 
 async function importInvoiceMasterIfEmpty() {
@@ -902,6 +953,15 @@ async function importInvoiceMasterIfEmpty() {
   return imported;
 }
 
+function fillDemoYomiIfMissing() {
+  const yomiMap = new Map(DEMO_PRICES.map(p => [`${p.customer}\t${p.name}`, p.yomi || ""]));
+  state.prices = state.prices.map(p => {
+    if (p.yomi) return p;
+    const y = yomiMap.get(`${p.customer}\t${p.name}`) || "";
+    return y ? { ...p, yomi: y } : p;
+  });
+}
+
 async function loadLedgerMaster() {
   if (state.demoMode) {
     if (!loadLedgerMasterFromCache()) {
@@ -909,6 +969,8 @@ async function loadLedgerMaster() {
       state.prices = DEMO_PRICES.map(p => ({ ...p }));
       state.groupOrder = ["法人", "飲食", "医療"];
     }
+    fillDemoYomiIfMissing();
+    state.prices = normalizeMasterItems(state.prices);
     syncGroupOrderFromCustomers();
     return;
   }
@@ -999,6 +1061,7 @@ function openMasterItemForm(mode, customer, index = -1) {
     customer,
     index,
     name: row?.name || "",
+    yomi: row?.yomi || "",
     code: row?.code || (mode === "add" ? nextItemCode() : "")
   };
   render();
@@ -1017,6 +1080,7 @@ async function submitMasterForm() {
   }
   const name = (document.getElementById("master-form-name")?.value || "").trim();
   const codeRaw = (document.getElementById("master-form-code")?.value || "").trim();
+  const yomi = normalizeYomiInput(document.getElementById("master-form-yomi")?.value || "");
   const group = (document.getElementById("master-form-group")?.value || "").trim();
   try {
     if (f.kind === "group") {
@@ -1059,12 +1123,12 @@ async function submitMasterForm() {
       if (!name) { toast("品名を入力してください", "error"); return; }
       const code = normalizeItemCode(codeRaw, { assignIfEmpty: true });
       if (f.mode === "add") {
-        state.prices.push({ customer, code, name });
+        state.prices.push({ customer, code, name, yomi });
       } else {
         const rows = customerItemRows(customer);
         const target = rows[f.index];
         if (!target) { toast("品目が見つかりません", "error"); return; }
-        state.prices = state.prices.map(p => p === target ? { customer, code, name } : p);
+        state.prices = state.prices.map(p => p === target ? { customer, code, name, yomi } : p);
         if (state.customer === customer) loadCustomerItems(customer);
       }
     }
@@ -1191,7 +1255,9 @@ function openItemAdd(tab = "free") {
   state.itemAddOpen = true;
   state.itemAddTab = tab;
   state.itemAddQuery = "";
+  state.itemAddKanaRow = "";
   state.itemAddName = "";
+  state.itemAddYomi = "";
   state.itemAddToMaster = true;
   state.focus = null;
   state.buffer = "";
@@ -1203,8 +1269,11 @@ function closeItemAdd() {
   render();
 }
 
-function searchMasterItems(q) {
+function searchMasterItems(q, kanaRow = "") {
   const query = normalizeItemName(q);
+  const yomiQuery = normalizeYomiKey(q);
+  const rowFilter = String(kanaRow || "");
+  if (!query && !rowFilter) return [];
   const seen = new Set();
   const hits = [];
   for (const p of state.prices) {
@@ -1214,18 +1283,34 @@ function searchMasterItems(q) {
     if (seen.has(key)) continue;
     const nameKey = normalizeItemName(name);
     const codeKey = String(p.code || "").toLowerCase();
-    if (query && !nameKey.includes(query) && !codeKey.includes(query)) continue;
+    const yomiKey = normalizeYomiKey(p.yomi);
+    if (rowFilter && rowFilter !== "all") {
+      if (kanaRowOf(p.yomi, name) !== rowFilter) continue;
+    }
+    if (query) {
+      const hitText =
+        nameKey.includes(query) ||
+        codeKey.includes(query) ||
+        (yomiKey && yomiQuery && yomiKey.includes(yomiQuery));
+      if (!hitText) continue;
+    }
     if (isOnInputList(name)) continue;
     seen.add(key);
     hits.push({
       name,
       code: p.code || "",
+      yomi: p.yomi || "",
       fromCustomer: p.customer || "",
       alreadyOnCustomer: state.prices.some(x => x.customer === state.customer && normalizeItemName(x.name) === nameKey)
     });
-    if (hits.length >= 50) break;
   }
-  return hits;
+  hits.sort((a, b) => {
+    const ay = itemYomiSortKey(a);
+    const by = itemYomiSortKey(b);
+    if (ay !== by) return ay < by ? -1 : 1;
+    return normalizeItemName(a.name) < normalizeItemName(b.name) ? -1 : 1;
+  });
+  return hits.slice(0, 80);
 }
 
 function normalizeItemName(name) {
@@ -1252,7 +1337,7 @@ function isOnInputList(name) {
   return state.items.some(it => normalizeItemName(it.name) === key);
 }
 
-async function addItemToInput(name, { code = "", toMaster = false } = {}) {
+async function addItemToInput(name, { code = "", toMaster = false, yomi: yomiOpt = "" } = {}) {
   if (!state.customer) {
     toast("先に客先を選択してください", "error");
     return;
@@ -1273,7 +1358,12 @@ async function addItemToInput(name, { code = "", toMaster = false } = {}) {
     let onThisCustomer = registered.customer === state.customer;
     if (toMaster && !onThisCustomer) {
       itemCode = normalizeItemCode(itemCode, { assignIfEmpty: true });
-      state.prices.push({ customer: state.customer, code: itemCode, name: registered.name });
+      state.prices.push({
+        customer: state.customer,
+        code: itemCode,
+        name: registered.name,
+        yomi: registered.yomi || ""
+      });
       try {
         await persistLedgerMaster();
       } catch (e) {
@@ -1304,9 +1394,10 @@ async function addItemToInput(name, { code = "", toMaster = false } = {}) {
   }
   let itemCode = code || "";
   let adhoc = true;
+  const yomi = normalizeYomiInput(yomiOpt || state.itemAddYomi || "");
   if (toMaster) {
     itemCode = normalizeItemCode(itemCode, { assignIfEmpty: true });
-    state.prices.push({ customer: state.customer, code: itemCode, name });
+    state.prices.push({ customer: state.customer, code: itemCode, name, yomi });
     try {
       await persistLedgerMaster();
     } catch (e) {
@@ -1611,17 +1702,21 @@ function renderInputTab() {
 function renderItemAddPanel() {
   if (!state.itemAddOpen) return "";
   const free = state.itemAddTab === "free";
-  const hits = free ? [] : searchMasterItems(state.itemAddQuery);
+  const hits = free ? [] : searchMasterItems(state.itemAddQuery, state.itemAddKanaRow);
+  const hasFilter = !!(state.itemAddQuery.trim() || state.itemAddKanaRow);
   const hitRows = hits.length
     ? hits.map((h, i) => `
       <button type="button" class="item-add-hit" data-add-hit="${i}">
         <div>
           <div class="item-add-hit-title">${esc(h.name)}</div>
-          <div class="item-add-hit-meta">${h.code ? `コード ${esc(h.code)} · ` : ""}${h.fromCustomer ? esc(h.fromCustomer) : ""}${h.alreadyOnCustomer ? " · この客先マスタにあり" : ""}</div>
+          <div class="item-add-hit-meta">${h.yomi ? `読み ${esc(h.yomi)} · ` : ""}${h.code ? `コード ${esc(h.code)} · ` : ""}${h.fromCustomer ? esc(h.fromCustomer) : ""}${h.alreadyOnCustomer ? " · この客先マスタにあり" : ""}</div>
         </div>
         <span style="font-size:12px;font-weight:700;color:#0288D1">追加</span>
       </button>`).join("")
-    : `<div class="empty" style="padding:20px">${state.itemAddQuery.trim() ? "該当なし" : "キーワードを入力して検索"}</div>`;
+    : `<div class="empty" style="padding:20px">${hasFilter ? "該当なし" : "あ行などを選ぶか、キーワードを入力してください"}</div>`;
+  const kanaOpts = KANA_ROW_OPTIONS.map(r =>
+    `<option value="${esc(r.key)}" ${state.itemAddKanaRow === r.key ? "selected" : ""}>${esc(r.label)}</option>`
+  ).join("");
 
   return `
     <div class="detail-overlay" id="item-add-overlay">
@@ -1634,6 +1729,8 @@ function renderItemAddPanel() {
         ${free ? `
           <label class="lbl">品名</label>
           <input type="text" id="item-add-name" value="${esc(state.itemAddName)}" placeholder="例：貸出シーツ（臨時）" autofocus>
+          <label class="lbl">読み仮名（マスタ登録時・あ行検索用）</label>
+          <input type="text" id="item-add-yomi" value="${esc(state.itemAddYomi)}" placeholder="例：かしだししーつ" inputmode="kana">
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0 14px;cursor:pointer">
             <input type="checkbox" id="item-add-to-master" ${state.itemAddToMaster ? "checked" : ""} style="width:18px;height:18px">
             この客先のマスタにも登録する
@@ -1643,9 +1740,18 @@ function renderItemAddPanel() {
             <button type="button" class="btn btn-primary" id="item-add-save">追加</button>
           </div>
         ` : `
-          <label class="lbl">検索（品名・コード）</label>
-          <input type="text" id="item-add-query" value="${esc(state.itemAddQuery)}" placeholder="キーワード" autofocus>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:8px 0 4px;cursor:pointer">
+          <div style="display:grid;grid-template-columns:130px 1fr;gap:8px;margin-bottom:4px">
+            <div>
+              <label class="lbl">行</label>
+              <select id="item-add-kana">${kanaOpts}</select>
+            </div>
+            <div>
+              <label class="lbl">キーワード（品名・読み・コード）</label>
+              <input type="text" id="item-add-query" value="${esc(state.itemAddQuery)}" placeholder="キーワード" autofocus>
+            </div>
+          </div>
+          <p style="font-size:11px;color:#888;margin:0 0 8px">漢字は読み仮名があるとあ行で探せます。未登録は「その他」</p>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin:0 0 4px;cursor:pointer">
             <input type="checkbox" id="item-add-to-master" ${state.itemAddToMaster ? "checked" : ""} style="width:18px;height:18px">
             この客先のマスタにも登録する
           </label>
@@ -1734,7 +1840,7 @@ function renderMasterTab() {
     <div class="master-row">
       <div class="master-row-body">
         <div class="master-row-title">${esc(p.name)}</div>
-        <div class="master-row-meta">${p.code ? `コード ${esc(p.code)}` : "コードなし"}</div>
+        <div class="master-row-meta">${p.yomi ? `読み ${esc(p.yomi)} · ` : ""}${p.code ? `コード ${esc(p.code)}` : "コードなし"}</div>
       </div>
       ${fullEdit ? `<div class="master-row-actions">
         <button type="button" class="master-btn master-btn-edit" data-master-edit-item="${i}">編集</button>
@@ -1821,7 +1927,12 @@ function renderMasterForm() {
         <input type="text" id="master-form-group" list="master-group-list" value="${esc(f.group || "")}" placeholder="例：医療 / 飲食 / 法人">
         <datalist id="master-group-list">${groupOpts}</datalist>
         <p style="font-size:11px;color:#888;margin:-4px 0 10px">グループタブで追加・改名もできます</p>` : ""}
-        ${!isCustomer ? `<label class="lbl">コード（N始まり）</label><input type="text" id="master-form-code" value="${esc(f.code)}" placeholder="例：N001">` : ""}
+        ${!isCustomer ? `
+        <label class="lbl">読み仮名（あ行検索用）</label>
+        <input type="text" id="master-form-yomi" value="${esc(f.yomi || "")}" placeholder="例：さぎょうぎうえ" inputmode="kana">
+        <p style="font-size:11px;color:#888;margin:-4px 0 10px">ひらがな・カタカナどちらでも可。漢字品名の行分けに使います</p>
+        <label class="lbl">コード（N始まり）</label>
+        <input type="text" id="master-form-code" value="${esc(f.code)}" placeholder="例：N001">` : ""}
         <div class="master-form-actions">
           <button type="button" class="btn btn-ghost" id="master-form-cancel" style="background:#f4f3ef;color:#1a1a2e">キャンセル</button>
           <button type="button" class="btn btn-primary" id="master-form-save">保存</button>
@@ -1999,16 +2110,31 @@ function render() {
       nameInput.onkeydown = e => {
         if (e.key === "Enter") {
           e.preventDefault();
-          addItemToInput(nameInput.value, { toMaster: state.itemAddToMaster });
+          addItemToInput(nameInput.value, {
+            toMaster: state.itemAddToMaster,
+            yomi: document.getElementById("item-add-yomi")?.value || ""
+          });
         }
       };
     }
+    const yomiInput = document.getElementById("item-add-yomi");
+    if (yomiInput) yomiInput.oninput = e => { state.itemAddYomi = e.target.value; };
     const saveFree = document.getElementById("item-add-save");
     if (saveFree) {
       saveFree.onclick = () => addItemToInput(
         document.getElementById("item-add-name")?.value || "",
-        { toMaster: state.itemAddToMaster }
+        {
+          toMaster: state.itemAddToMaster,
+          yomi: document.getElementById("item-add-yomi")?.value || ""
+        }
       );
+    }
+    const kanaSelect = document.getElementById("item-add-kana");
+    if (kanaSelect) {
+      kanaSelect.onchange = e => {
+        state.itemAddKanaRow = e.target.value;
+        render();
+      };
     }
     const queryInput = document.getElementById("item-add-query");
     if (queryInput) {
@@ -2023,12 +2149,12 @@ function render() {
         }
       };
     }
-    const hits = searchMasterItems(state.itemAddQuery);
+    const hits = searchMasterItems(state.itemAddQuery, state.itemAddKanaRow);
     document.querySelectorAll("[data-add-hit]").forEach(btn => {
       btn.onclick = () => {
         const hit = hits[+btn.dataset.addHit];
         if (!hit) return;
-        addItemToInput(hit.name, { code: hit.code, toMaster: state.itemAddToMaster });
+        addItemToInput(hit.name, { code: hit.code, toMaster: state.itemAddToMaster, yomi: hit.yomi });
       };
     });
   }
