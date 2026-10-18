@@ -36,15 +36,13 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 .col-mode-controls{display:flex;align-items:center;gap:2px}
 .btn-col-mode{min-width:auto;padding:5px 10px;font-size:12px;font-weight:700;white-space:nowrap}
 .btn-col-mode.active{background:#fff;color:#0288D1}
-.item-list.col-flow{display:flex;flex-direction:row;align-items:stretch;gap:14px;width:100%;height:100%;box-sizing:border-box}
-.item-col{display:flex;flex-direction:column;flex:1 1 0;min-width:0;height:100%}
-.item-col .item-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(8px * var(--iz));width:100%;flex:1 1 0;min-height:0;align-items:center;padding:calc(4px * var(--iz)) calc(5px * var(--iz))}
-.item-col .qty-cell{height:auto;min-height:calc(36px * var(--iz));align-self:stretch}
+.item-list.col-flow{display:flex;flex-direction:row;align-items:flex-start;gap:16px;width:100%;box-sizing:border-box}
+.item-col{display:flex;flex-direction:column;flex:1 1 0;min-width:0}
+.item-col .list-head-unit{display:grid;grid-template-columns:minmax(0,1fr) calc(72px * var(--iz)) calc(72px * var(--iz));gap:calc(8px * var(--iz));align-items:center;width:100%;padding:0 calc(5px * var(--iz)) calc(4px * var(--iz));font-size:calc(13px * var(--iz));font-weight:700;color:#888;text-align:center;box-sizing:border-box;flex-shrink:0}
+.item-col .list-head-unit span:first-child{text-align:left}
+.item-col .item-row{display:grid;grid-template-columns:minmax(0,1fr) calc(72px * var(--iz)) calc(72px * var(--iz));gap:calc(8px * var(--iz));width:100%;flex:0 0 auto;min-height:calc(48px * var(--iz));align-items:center;padding:calc(4px * var(--iz)) calc(5px * var(--iz));box-sizing:border-box}
 .item-col .item-row:first-of-type{border-top:1px solid #eceae4}
-.list-head.col-flow{display:flex;flex-direction:row;gap:14px;width:100%;flex-shrink:0;padding-bottom:2px}
-.list-head.col-flow .list-head-unit{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(8px * var(--iz));align-items:center;flex:1 1 0;min-width:0;padding:0 calc(5px * var(--iz)) calc(3px * var(--iz));font-size:calc(13px * var(--iz));font-weight:700;color:#888;text-align:center;box-sizing:border-box}
-.list-head.col-flow .list-head-unit span:first-child{text-align:left}
-.list-head.col-flow .list-head-unit span:not(:first-child){width:calc(72px * var(--iz))}
+.item-col .qty-cell{width:calc(72px * var(--iz));max-width:calc(72px * var(--iz))}
 .btn{border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
 .btn-ghost{background:rgba(255,255,255,.22);color:#fff}
 .btn-primary{background:#e8d5b7;color:#1a1a2e}
@@ -286,7 +284,7 @@ function bindInstallButtons() {
 
 function registerServiceWorkerLater() {
   if (!("serviceWorker" in navigator)) return;
-  const run = () => navigator.serviceWorker.register("./sw.js?v=6", { updateViaCache: "none" }).catch(() => {});
+  const run = () => navigator.serviceWorker.register("./sw.js?v=7", { updateViaCache: "none" }).catch(() => {});
   if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 5000 });
   else setTimeout(run, 3000);
 }
@@ -567,18 +565,12 @@ function itemLayoutMeta(n = state.items.length) {
   return { rows, cols, colMax };
 }
 
-/** 列内の品目が画面高さに均等配置されるよう高さを明示する */
+/** 列レイアウトの高さ指定をクリア（行をつぶさず縦スクロール） */
 function applyItemColLayout() {
-  const scroll = document.getElementById("items-scroll");
-  const list = scroll?.querySelector(".item-list.col-flow");
-  const head = scroll?.querySelector(".list-head.col-flow");
-  if (!scroll || !list) return;
-  const avail = Math.floor(scroll.clientHeight - (head?.offsetHeight || 0) - 6);
-  if (avail < 60) return;
-  list.style.height = `${avail}px`;
-  list.querySelectorAll(".item-col").forEach(col => {
-    col.style.height = `${avail}px`;
-  });
+  const list = document.querySelector(".item-list.col-flow");
+  if (!list) return;
+  list.style.height = "";
+  list.querySelectorAll(".item-col").forEach(col => { col.style.height = ""; });
 }
 
 function loadItemZoom() {
@@ -1547,9 +1539,6 @@ function renderInputTab() {
   const custOpts = renderCustomerSelectOptions(state.customer);
   const layout = itemLayoutMeta();
   const headUnit = `<div class="list-head-unit"><span>品名</span><span>入</span><span>出</span></div>`;
-  const head = layout.cols > 0
-    ? `<div class="list-head col-flow">${Array.from({ length: layout.cols }, () => headUnit).join("")}</div>`
-    : "";
 
   let body = "";
   if (state.items.length === 0) {
@@ -1560,9 +1549,9 @@ function renderInputTab() {
       const start = c * layout.rows;
       const slice = state.items.slice(start, start + layout.rows);
       const rowsHtml = slice.map((it, j) => renderItemRow(it, start + j)).join("");
-      colsHtml.push(`<div class="item-col" data-col="${c}">${rowsHtml}</div>`);
+      colsHtml.push(`<div class="item-col" data-col="${c}">${headUnit}${rowsHtml}</div>`);
     }
-    body = `${head}<div class="item-list col-flow" data-cols="${layout.cols}" data-rows="${layout.rows}">${colsHtml.join("")}</div>`;
+    body = `<div class="item-list col-flow" data-cols="${layout.cols}" data-rows="${layout.rows}">${colsHtml.join("")}</div>`;
   }
 
   return `
