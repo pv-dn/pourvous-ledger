@@ -38,13 +38,15 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 .btn-col-mode.active{background:#fff;color:#0288D1}
 .item-list.col-flow{display:flex;flex-direction:row;align-items:flex-start;gap:16px;width:100%;box-sizing:border-box}
 .item-col{display:flex;flex-direction:column;flex:1 1 0;min-width:0}
-.item-col .list-head-unit{display:grid;grid-template-columns:minmax(0,1fr) var(--qty-w,72px) var(--qty-w,72px);gap:8px;align-items:center;width:100%;height:var(--head-h,22px);padding:0 5px 2px;font-size:var(--head-fs,12px);font-weight:700;color:#888;text-align:center;box-sizing:border-box;flex-shrink:0}
-.item-col .list-head-unit span:first-child{text-align:left}
-.item-col .item-row{display:grid;grid-template-columns:minmax(0,1fr) var(--qty-w,72px) var(--qty-w,72px);gap:8px;width:100%;flex:0 0 auto;height:var(--row-h,48px);min-height:var(--row-h,48px);max-height:var(--row-h,48px);align-items:center;padding:0 5px;box-sizing:border-box}
+.item-col .list-head-unit{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;width:100%;height:var(--head-h,22px);padding:0 5px 2px;font-size:var(--head-fs,12px);font-weight:700;color:#888;text-align:center;box-sizing:border-box;flex-shrink:0;gap:8px}
+.item-col .list-head-unit span:first-child{flex:1 1 0;min-width:0;text-align:left}
+.item-col .list-head-unit span:not(:first-child){flex:0 0 var(--qty-w,72px);width:var(--qty-w,72px)}
+.item-col .item-row{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:8px;width:100%;flex:0 0 var(--row-h,48px);height:var(--row-h,48px);min-height:var(--row-h,48px);max-height:var(--row-h,48px);padding:0 5px;box-sizing:border-box;overflow:hidden;grid-template-columns:none}
+.item-col .item-row > .item-main{flex:1 1 0;min-width:0;max-width:none;overflow:hidden;align-items:center}
+.item-col .item-row > .qty-cell{flex:0 0 var(--qty-w,72px);width:var(--qty-w,72px);max-width:var(--qty-w,72px);height:var(--qty-h,40px);min-height:0;max-height:var(--qty-h,40px);font-size:var(--qty-fs,20px)}
 .item-col .item-row:first-of-type{border-top:1px solid #eceae4}
 .item-col .item-name{font-size:var(--name-fs,18px);line-height:1.1}
 .item-col .item-code{font-size:var(--code-fs,11px)}
-.item-col .qty-cell{width:var(--qty-w,72px);max-width:var(--qty-w,72px);height:var(--qty-h,40px);min-height:0;font-size:var(--qty-fs,20px)}
 .item-col .qty-cell.empty{font-size:var(--qty-fs,20px)}
 .btn{border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
 .btn-ghost{background:rgba(255,255,255,.22);color:#fff}
@@ -66,7 +68,7 @@ select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;borde
 .meta-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .item-list{display:flex;flex-direction:column;gap:0}
 .items-panel{display:flex;flex-direction:column;flex:1;min-height:0;gap:3px;--iz:1}
-.item-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto minmax(0,1fr);align-items:center;gap:calc(10px * var(--iz));width:100%;box-sizing:border-box;background:#fff;border-bottom:1px solid #eceae4;padding:calc(2px * var(--iz)) calc(5px * var(--iz));border-radius:0}
+.item-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:calc(10px * var(--iz));width:100%;box-sizing:border-box;background:#fff;border-bottom:1px solid #eceae4;padding:calc(2px * var(--iz)) calc(5px * var(--iz));border-radius:0}
 .item-row:first-of-type{border-top:1px solid #eceae4}
 .item-row.active{background:#faf9f7;border-bottom-color:#1a1a2e}
 .item-main{display:flex;align-items:baseline;gap:calc(6px * var(--iz));min-width:0;overflow:hidden}
@@ -287,7 +289,7 @@ function bindInstallButtons() {
 
 function registerServiceWorkerLater() {
   if (!("serviceWorker" in navigator)) return;
-  const run = () => navigator.serviceWorker.register("./sw.js?v=8", { updateViaCache: "none" }).catch(() => {});
+  const run = () => navigator.serviceWorker.register("./sw.js?v=9", { updateViaCache: "none" }).catch(() => {});
   if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 5000 });
   else setTimeout(run, 3000);
 }
