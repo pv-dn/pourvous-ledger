@@ -1208,6 +1208,10 @@ async function submitMasterForm() {
       if (!name) { toast("品名を入力してください", "error"); return; }
       const code = normalizeItemCode(codeRaw, { assignIfEmpty: true });
       if (f.mode === "add") {
+        if (customerItemRows(customer).some(p => normalizeItemName(p.name) === normalizeItemName(name))) {
+          toast("この客先には同じ品名がすでにあります", "error");
+          return;
+        }
         state.prices.push({ customer, code, name, yomi });
       } else {
         const rows = customerItemRows(customer);
