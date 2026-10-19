@@ -299,7 +299,7 @@ function bindInstallButtons() {
 
 function registerServiceWorkerLater() {
   if (!("serviceWorker" in navigator)) return;
-  const run = () => navigator.serviceWorker.register("./sw.js?v=15", { updateViaCache: "none" }).catch(() => {});
+  const run = () => navigator.serviceWorker.register("./sw.js?v=16", { updateViaCache: "none" }).catch(() => {});
   if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 5000 });
   else setTimeout(run, 3000);
 }
@@ -435,7 +435,7 @@ async function sortCustomersByName() {
 
 function openMasterGroupForm(mode, name = "") {
   if (!canMasterFullEdit()) {
-    toast("グループの編集はPCから行ってください", "error");
+    toast("グループの編集はPCまたはタブレットから行ってください", "error");
     return;
   }
   state.masterForm = {
@@ -1126,7 +1126,7 @@ function customerItemRows(customer) {
 
 function openMasterCustomerForm(mode, name = "") {
   if (!canMasterFullEdit()) {
-    toast("客先の編集はPCから行ってください", "error");
+    toast("客先の編集はPCまたはタブレットから行ってください", "error");
     return;
   }
   const current = mode === "edit" ? state.customers.find(c => c.name === name) : null;
@@ -1142,7 +1142,7 @@ function openMasterCustomerForm(mode, name = "") {
 
 function openMasterItemForm(mode, customer, index = -1) {
   if (mode === "edit" && !canMasterFullEdit()) {
-    toast("品目の編集はPCから行ってください", "error");
+    toast("品目の編集はPCまたはタブレットから行ってください", "error");
     return;
   }
   const rows = customerItemRows(customer);
@@ -1165,11 +1165,11 @@ async function submitMasterForm() {
   const f = state.masterForm;
   if (!f) return;
   if ((f.kind === "customer" || f.kind === "group") && !canMasterFullEdit()) {
-    toast("編集はPCから行ってください", "error");
+    toast("編集はPCまたはタブレットから行ってください", "error");
     return;
   }
   if (f.kind === "item" && f.mode === "edit" && !canMasterFullEdit()) {
-    toast("品目の編集はPCから行ってください", "error");
+    toast("品目の編集はPCまたはタブレットから行ってください", "error");
     return;
   }
   const name = (document.getElementById("master-form-name")?.value || "").trim();
@@ -1242,7 +1242,7 @@ async function submitMasterForm() {
 
 async function deleteMasterCustomer(name) {
   if (!canMasterFullEdit()) {
-    toast("客先の削除はPCから行ってください", "error");
+    toast("客先の削除はPCまたはタブレットから行ってください", "error");
     return;
   }
   if (!confirm(`「${name}」を削除しますか？\nこの客先の品目もすべて削除されます。`)) return;
@@ -1267,7 +1267,7 @@ async function deleteMasterCustomer(name) {
 
 async function deleteMasterItem(customer, index) {
   if (!canMasterFullEdit()) {
-    toast("品目の削除はPCから行ってください", "error");
+    toast("品目の削除はPCまたはタブレットから行ってください", "error");
     return;
   }
   const rows = customerItemRows(customer);
@@ -1962,7 +1962,7 @@ function renderMasterTab() {
 
   const note = fullEdit
     ? "客先・グループ・品目を管理できます。伝票アプリのマスタは変更しません。"
-    : "スマホでは品目の追加のみ可能です。客先・グループの編集はPCから行ってください。";
+    : "スマホでは品目の追加のみ可能です。客先・グループの編集はPCまたはタブレットから行ってください。";
 
   let body = "";
   if (customerSection) {
