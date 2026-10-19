@@ -18,12 +18,12 @@
 4. **完了して保存**
 5. 納品伝票が必要なとき → **伝票入力メモ** で「出」を確認し、**伝票アプリ**で発行
 
-詳しい操作説明は **[使い方ガイド（guide.html）](./guide.html)** を参照。アプリ画面の「ガイド」からも開けます。
+詳しい操作説明は **[使い方ガイド（guide.html）](./guide.html)** を参照（画面スクショ付き・印刷／PDF可）。アプリ画面の「ガイド」からも開けます。
 
 ## 起動
 
 - 本番: https://pv-dn.github.io/pourvous-ledger/
-- ガイド: https://pv-dn.github.io/pourvous-ledger/guide.html
+- ガイド（印刷用）: https://pv-dn.github.io/pourvous-ledger/guide.html
 - 開発: `index.html`（localhost では試用モード）
 
 ## Cursor

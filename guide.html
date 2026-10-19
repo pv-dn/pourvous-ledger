@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>入出荷台帳｜使い方ガイド</title>
+  <title>入出荷台帳｜使い方ガイド（客先提出用）</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
@@ -11,11 +11,12 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: "Noto Sans JP", sans-serif; background: var(--bg); color: var(--ink); line-height: 1.7; }
     .top { background: var(--sky); color: #fff; padding: 20px 16px 24px; }
-    .top-inner { max-width: 720px; margin: 0 auto; }
+    .top-inner { max-width: 760px; margin: 0 auto; display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
     .top h1 { font-size: 22px; font-weight: 700; }
     .top p { font-size: 13px; opacity: .92; margin-top: 4px; }
     .top a { color: #fff; font-weight: 700; }
-    .wrap { max-width: 720px; margin: 0 auto; padding: 20px 16px 48px; }
+    .print-btn { border: none; border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; background: #fff; color: #0288D1; flex-shrink: 0; }
+    .wrap { max-width: 760px; margin: 0 auto; padding: 20px 16px 48px; }
     .nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
     .nav a { font-size: 12px; font-weight: 700; text-decoration: none; color: #0277a8; background: #e8f3fa; border: 1px solid #9fc4de; border-radius: 999px; padding: 6px 12px; }
     section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 16px; margin-bottom: 14px; }
@@ -32,16 +33,36 @@
     th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
     th { background: #f7fafc; font-weight: 700; width: 28%; }
     .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: middle; margin-right: 4px; border: 1px solid rgba(0,0,0,.12); }
+    figure.shot { margin: 12px 0 4px; page-break-inside: avoid; break-inside: avoid; }
+    figure.shot img { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; display: block; }
+    figure.shot figcaption { font-size: 12px; color: var(--muted); margin-top: 6px; text-align: center; }
     .footer { text-align: center; font-size: 12px; color: var(--muted); margin-top: 8px; }
     .footer a { color: #0277a8; }
+    .cover-meta { font-size: 13px; margin-top: 10px; }
+    @media print {
+      body { background: #fff; }
+      .top { background: #4FC3F7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 16px; }
+      .print-btn, .nav { display: none !important; }
+      .wrap { max-width: none; padding: 12px 0 0; }
+      section { break-inside: avoid; page-break-inside: avoid; border: 1px solid #ccc; margin-bottom: 12px; box-shadow: none; }
+      figure.shot { break-inside: avoid; page-break-inside: avoid; }
+      figure.shot img { max-height: 55vh; object-fit: contain; border-radius: 0; }
+      .tip, .ok, .swatch, th, .master-subtab, a.nav { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      a[href]::after { content: ""; }
+      .footer { margin-top: 16px; }
+    }
   </style>
 </head>
 <body>
   <header class="top">
     <div class="top-inner">
-      <h1>入出荷台帳｜使い方ガイド</h1>
-      <p>手書き台帳の代わりに、タブレットで入・出を記録するアプリです。<br>
-        アプリ本体：<a href="./">https://pv-dn.github.io/pourvous-ledger/</a></p>
+      <div>
+        <h1>入出荷台帳｜使い方ガイド</h1>
+        <p>客先提出・説明用（画面イメージ付き）</p>
+        <p class="cover-meta">アプリ：<a href="./">https://pv-dn.github.io/pourvous-ledger/</a><br>
+          ガイド：https://pv-dn.github.io/pourvous-ledger/guide.html</p>
+      </div>
+      <button type="button" class="print-btn" onclick="window.print()">印刷する</button>
     </div>
   </header>
 
@@ -59,13 +80,13 @@
 
     <section id="start">
       <h2>1. はじめに</h2>
-      <p>客先ごとのリネン・ユニフォームなどを「入（回収）」「出（納品）」の数量で記録し、履歴に残せます。</p>
+      <p>客先ごとのリネン・ユニフォームなどを「入（回収）」「出（納品）」の数量で記録し、履歴に残すアプリです。手書き台帳の代わりに、タブレットで現場入力できます。</p>
       <ul>
         <li>画面上部の <strong>入力</strong> / <strong>履歴</strong> / <strong>マスタ</strong> で切り替えます。</li>
         <li>タブレットは<strong>横置き</strong>が使いやすいです（右側にテンキー）。</li>
         <li>「アプリをインストール」でホーム画面に置けます（対応ブラウザ）。</li>
       </ul>
-      <div class="tip">いまは仮運用のため、ログインなし・この端末内の保存になっている場合があります。本番運用に切り替えたあとは、共有マスタ／履歴になります。</div>
+      <div class="tip">印刷するときは、このページ右上の「印刷する」→ プリンタまたは「PDFに保存」を選んでください。</div>
     </section>
 
     <section id="roles">
@@ -80,6 +101,10 @@
 
     <section id="input">
       <h2>3. 入力画面</h2>
+      <figure class="shot">
+        <img src="./guide-shots/shot-input.png" alt="入力画面のスクリーンショット" width="1360" height="820">
+        <figcaption>図1. 入力画面（客先・品目・入出・テンキー）</figcaption>
+      </figure>
       <ol>
         <li><strong>客先</strong>を選ぶ → その客先の品目が一覧表示されます。</li>
         <li><strong>納品日</strong>を確認・変更します。</li>
@@ -99,17 +124,17 @@
         <li>入と出の数が違うとき … 出が赤くなります</li>
       </ul>
       <h3>品目をその場で足す</h3>
-      <p>「＋ 品目を追加」から、自由入力またはマスタ検索ができます。</p>
-      <ul>
-        <li>すでにマスタにある名前 → 「登録済みです」と出て、マスタ側が追加されます。</li>
-        <li>「この客先のマスタにも登録する」にチェックを入れると、次回からも一覧に出ます。</li>
-      </ul>
+      <p>「＋ 品目を追加」から、自由入力またはマスタ検索ができます。すでにマスタにある名前は「登録済み」としてマスタ側が追加されます。</p>
       <h3>伝票入力メモ</h3>
-      <p>保存前後に「出」の数量を確認する画面です。いまは伝票アプリへ手で転記する前提です（自動発行は今後）。</p>
+      <p>「出」の数量を確認する画面です。いまは伝票アプリへ手で転記する前提です（自動発行は今後）。</p>
     </section>
 
     <section id="history">
       <h2>4. 履歴画面</h2>
+      <figure class="shot">
+        <img src="./guide-shots/shot-history.png" alt="履歴画面のスクリーンショット" width="1360" height="820">
+        <figcaption>図2. 履歴画面（保存した台帳の一覧）</figcaption>
+      </figure>
       <ul>
         <li>保存した台帳が、納品日の新しい順に並びます。</li>
         <li>行をタップすると明細を確認できます。</li>
@@ -125,6 +150,10 @@
         <li><span class="swatch" style="background:#f3eef8"></span><strong>グループ</strong> … 飲食 / 医療 などのまとめ</li>
         <li><span class="swatch" style="background:#eef8f1"></span><strong>品目</strong> … 客先ごとの品名・読み・コード</li>
       </ul>
+      <figure class="shot">
+        <img src="./guide-shots/shot-master-list.png" alt="マスタ品目一覧のスクリーンショット" width="1360" height="820">
+        <figcaption>図3. マスタ｜品目一覧（あ行・キーワードで絞り込み）</figcaption>
+      </figure>
       <h3>品目の登録</h3>
       <ol>
         <li>品目タブで客先を選ぶ</li>
@@ -132,6 +161,10 @@
         <li>上の検索で既存品目を探して「使う」、または手入力</li>
         <li>読み仮名・コードを確認して保存</li>
       </ol>
+      <figure class="shot">
+        <img src="./guide-shots/shot-master-add.png" alt="品目追加画面のスクリーンショット" width="1360" height="820">
+        <figcaption>図4. 品目を追加（既存マスタ検索＋手入力）</figcaption>
+      </figure>
       <div class="ok">コードは <strong>N001</strong> のような N 始まりです。空欄なら自動で採番されます。</div>
     </section>
 
@@ -166,12 +199,12 @@
         <li>必要なら伝票入力メモを見ながら、伝票アプリで納品書を発行</li>
         <li>客先や品目のメンテはPCのマスタから</li>
       </ol>
-      <div class="tip">価格・販売の話は別紙／提案時の説明に任せ、このガイドは現場操作向けです。</div>
+      <div class="tip">この資料は現場操作・客先説明用です。印刷はブラウザの「印刷する」または Ctrl＋P からPDF保存もできます。</div>
     </section>
 
     <p class="footer">
       <a href="./">← アプリに戻る</a>
-      · 入出荷台帳ガイド
+      · 入出荷台帳ガイド（画面イメージ付き）
     </p>
   </main>
 </body>
