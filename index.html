@@ -96,6 +96,9 @@ select,input[type=date],input[type=text]{width:100%;padding:10px 12px;border:1px
 .sidebar-actions{display:flex;flex-direction:column;gap:8px;flex-shrink:0}
 .sidebar-actions .btn{width:100%;padding:calc(11px * var(--ui-scale, 1));font-size:calc(13px * var(--ui-scale, 1))}
 .btn-memo{background:#f0ebff;color:#5b4b8a;border:none}
+.btn-issue{background:#1a4a62;color:#fff;border:none;position:relative}
+.btn-issue .soon{display:block;font-size:calc(10px * var(--ui-scale, 1));font-weight:600;opacity:.85;margin-top:2px;letter-spacing:.02em}
+.btn-issue:disabled{opacity:.72;cursor:not-allowed}
 .numpad-target{font-size:calc(12px * var(--ui-scale, 1));color:#666;text-align:center;line-height:1.5;min-height:calc(32px * var(--ui-scale, 1));display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .numpad-target strong{color:#1a1a2e}
 .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(7px * var(--ui-scale, 1))}
@@ -2216,6 +2219,9 @@ function render() {
         <aside class="numpad-wrap${showNumpad ? "" : " hidden"}${state.focus ? "" : " disabled"}" aria-label="テンキー">
           <div class="sidebar-actions">
             <button class="btn btn-primary" id="btn-save">完了して保存</button>
+            <button type="button" class="btn btn-issue" id="btn-issue" title="伝票アプリとの連動は準備中です">
+              伝票を発行<span class="soon">準備中</span>
+            </button>
             <button class="btn btn-memo" id="btn-memo">伝票入力メモ</button>
           </div>
           <div class="numpad-target">${numpadHint}</div>
@@ -2370,8 +2376,14 @@ function render() {
   }
 
   const saveBtn = document.getElementById("btn-save");
+  const issueBtn = document.getElementById("btn-issue");
   const memoBtn = document.getElementById("btn-memo");
   if (saveBtn) saveBtn.onclick = saveLedger;
+  if (issueBtn) {
+    issueBtn.onclick = () => {
+      toast("伝票発行は準備中です。当面は「伝票入力メモ」から転記してください");
+    };
+  }
   if (memoBtn) memoBtn.onclick = showMemoFromForm;
 
   if (state.tab === 1) {
