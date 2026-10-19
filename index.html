@@ -289,7 +289,7 @@ function bindInstallButtons() {
 
 function registerServiceWorkerLater() {
   if (!("serviceWorker" in navigator)) return;
-  const run = () => navigator.serviceWorker.register("./sw.js?v=10", { updateViaCache: "none" }).catch(() => {});
+  const run = () => navigator.serviceWorker.register("./sw.js?v=11", { updateViaCache: "none" }).catch(() => {});
   if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 5000 });
   else setTimeout(run, 3000);
 }
@@ -684,6 +684,8 @@ const state = {
   itemAddToMaster: true,
   masterSection: "customers",
   masterCustomer: "",
+  masterItemKanaRow: "all",
+  masterItemQuery: "",
   masterForm: null,
   groupOrder: [],
 };
@@ -936,6 +938,40 @@ function kanaRowOf(yomi, name) {
 function itemYomiSortKey(p) {
   const y = normalizeYomiKey(p.yomi) || normalizeYomiKey(p.name);
   return y || `\uffff${normalizeItemName(p.name)}`;
+}
+
+/** 客先品目一覧の絞り込み（元の index を保持） */
+function filterCustomerItemsWithIndex(customer, q = "", kanaRow = "all") {
+  const rows = customerItemRows(customer);
+  const query = normalizeItemName(q);
+  const yomiQuery = normalizeYomiKey(q);
+  const rowFilter = String(kanaRow || "all");
+  const out = [];
+  rows.forEach((p, index) => {
+    const name = (p.name || "").trim();
+    if (!name) return;
+    if (rowFilter && rowFilter !== "all" && rowFilter !== "") {
+      if (kanaRowOf(p.yomi, name) !== rowFilter) return;
+    }
+    if (query) {
+      const nameKey = normalizeItemName(name);
+      const codeKey = String(p.code || "").toLowerCase();
+      const yomiKey = normalizeYomiKey(p.yomi);
+      const hit =
+        nameKey.includes(query) ||
+        codeKey.includes(query) ||
+        (yomiKey && yomiQuery && yomiKey.includes(yomiQuery));
+      if (!hit) return;
+    }
+    out.push({ p, index });
+  });
+  out.sort((a, b) => {
+    const ay = itemYomiSortKey(a.p);
+    const by = itemYomiSortKey(b.p);
+    if (ay !== by) return ay < by ? -1 : 1;
+    return normalizeItemName(a.p.name) < normalizeItemName(b.p.name) ? -1 : 1;
+  });
+  return out;
 }
 
 async function importInvoiceMasterIfEmpty() {
@@ -1836,17 +1872,29 @@ function renderMasterTab() {
     </div>`).join("");
 
   const masterCust = state.masterCustomer || state.customers[0]?.name || "";
-  const itemRows = masterCust ? customerItemRows(masterCust).map((p, i) => `
+  const filteredItems = masterCust
+    ? filterCustomerItemsWithIndex(masterCust, state.masterItemQuery, state.masterItemKanaRow)
+    : [];
+  const totalItems = masterCust ? customerItemRows(masterCust).length : 0;
+  const itemRows = filteredItems.map(({ p, index }) => `
     <div class="master-row">
       <div class="master-row-body">
         <div class="master-row-title">${esc(p.name)}</div>
         <div class="master-row-meta">${p.yomi ? `読み ${esc(p.yomi)} · ` : ""}${p.code ? `コード ${esc(p.code)}` : "コードなし"}</div>
       </div>
       ${fullEdit ? `<div class="master-row-actions">
-        <button type="button" class="master-btn master-btn-edit" data-master-edit-item="${i}">編集</button>
-        <button type="button" class="master-btn master-btn-del" data-master-del-item="${i}">削除</button>
+        <button type="button" class="master-btn master-btn-edit" data-master-edit-item="${index}">編集</button>
+        <button type="button" class="master-btn master-btn-del" data-master-del-item="${index}">削除</button>
       </div>` : ""}
-    </div>`).join("") : "";
+    </div>`).join("");
+  const kanaOpts = KANA_ROW_OPTIONS.filter(r => r.key !== "").map(r =>
+    `<option value="${esc(r.key)}" ${state.masterItemKanaRow === r.key ? "selected" : ""}>${esc(r.label)}</option>`
+  ).join("");
+  const itemEmptyMsg = !masterCust
+    ? "客先を登録してください"
+    : (totalItems === 0
+      ? "品目がありません"
+      : (filteredItems.length === 0 ? "条件に合う品目がありません" : ""));
 
   const custOpts = renderCustomerSelectOptions(masterCust);
 
@@ -1874,8 +1922,19 @@ function renderMasterTab() {
       <div class="master-toolbar">
         <select id="master-cust-select">${state.customers.length ? custOpts : `<option value="">客先がありません</option>`}</select>
       </div>
+      <div style="display:grid;grid-template-columns:130px 1fr;gap:8px;margin:10px 0 6px">
+        <div>
+          <label class="lbl">行</label>
+          <select id="master-item-kana">${kanaOpts}</select>
+        </div>
+        <div>
+          <label class="lbl">検索（品名・読み・コード）</label>
+          <input type="text" id="master-item-query" value="${esc(state.masterItemQuery)}" placeholder="キーワード">
+        </div>
+      </div>
+      <p class="sync-note" style="margin:0 0 8px">${totalItems ? `${filteredItems.length} / ${totalItems} 件` : "品目なし"} · 読み仮名順</p>
       <button type="button" class="master-add" id="master-add-item" ${state.customers.length ? "" : "disabled"}>＋ 品目を追加</button>
-      <div class="master-list" style="margin-top:10px">${itemRows || `<div class="empty" style="padding:24px">${masterCust ? "品目がありません" : "客先を登録してください"}</div>`}</div>`;
+      <div class="master-list" style="margin-top:10px">${itemRows || `<div class="empty" style="padding:24px">${esc(itemEmptyMsg)}</div>`}</div>`;
   }
 
   return `
@@ -2217,8 +2276,28 @@ function render() {
     const masterSel = document.getElementById("master-cust-select");
     if (masterSel) masterSel.onchange = e => {
       state.masterCustomer = e.target.value;
+      state.masterItemQuery = "";
+      state.masterItemKanaRow = "all";
       render();
     };
+    const masterKana = document.getElementById("master-item-kana");
+    if (masterKana) masterKana.onchange = e => {
+      state.masterItemKanaRow = e.target.value;
+      render();
+    };
+    const masterQuery = document.getElementById("master-item-query");
+    if (masterQuery) {
+      masterQuery.oninput = e => {
+        state.masterItemQuery = e.target.value;
+        render();
+        const q = document.getElementById("master-item-query");
+        if (q) {
+          q.focus();
+          const len = q.value.length;
+          q.setSelectionRange(len, len);
+        }
+      };
+    }
     const addItem = document.getElementById("master-add-item");
     if (addItem) addItem.onclick = () => openMasterItemForm("add", state.masterCustomer);
     document.querySelectorAll("[data-master-edit-item]").forEach(btn => {
