@@ -561,6 +561,70 @@ const DEMO_PRICES = [
   { customer: "テスト病院", code: "N018", name: "足袋", yomi: "たび" }
 ];
 
+/** 試用・仮運用で履歴が空のときだけ入れる見本台帳 */
+function demoDateOffset(daysAgo) {
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  d.setDate(d.getDate() - daysAgo);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function demoLedgerItems(customer, picks) {
+  const byCode = new Map(
+    DEMO_PRICES.filter(p => p.customer === customer).map(p => [p.code, p])
+  );
+  return picks.map(([code, inQty, outQty]) => {
+    const p = byCode.get(code) || { code, name: code };
+    return { code: p.code, name: p.name, inQty, outQty };
+  });
+}
+
+function buildDemoLedgers() {
+  const base = Date.now();
+  return [
+    {
+      id: base - 3,
+      customer: "サンプル商事",
+      deliveryDate: demoDateOffset(1),
+      items: demoLedgerItems("サンプル商事", [
+        ["N001", 20, 18], ["N002", 20, 18], ["N004", 8, 8], ["N005", 30, 28], ["N025", 40, 40]
+      ]),
+      createdAt: new Date(base - 3 * 3600000).toISOString(),
+      createdBy: "",
+      createdByEmail: "見本データ"
+    },
+    {
+      id: base - 2,
+      customer: "デモレストラン",
+      deliveryDate: demoDateOffset(3),
+      items: demoLedgerItems("デモレストラン", [
+        ["N001", 6, 6], ["N003", 10, 9], ["N004", 50, 48], ["N008", 20, 20], ["N012", 4, 4]
+      ]),
+      createdAt: new Date(base - 2 * 86400000).toISOString(),
+      createdBy: "",
+      createdByEmail: "見本データ"
+    },
+    {
+      id: base - 1,
+      customer: "テスト病院",
+      deliveryDate: demoDateOffset(5),
+      items: demoLedgerItems("テスト病院", [
+        ["N001", 15, 12], ["N002", 15, 12], ["N003", 8, 8], ["N008", 25, 24], ["N011", 40, 40]
+      ]),
+      createdAt: new Date(base - 5 * 86400000).toISOString(),
+      createdBy: "",
+      createdByEmail: "見本データ"
+    }
+  ];
+}
+
+function ensureDemoLedgers() {
+  if (!state.demoMode) return;
+  if (state.ledgers.length) return;
+  state.ledgers = applyLedgerRetention(buildDemoLedgers());
+  cacheLedgers();
+}
+
 const ZOOM_KEY = "lg_itemZoom";
 const ZOOM_MIN = 0.7;
 const ZOOM_MAX = 1.5;
@@ -1338,6 +1402,7 @@ async function loadMasters() {
       const cached = localStorage.getItem("lg_ledgers_demo");
       state.ledgers = applyLedgerRetention(cached ? JSON.parse(cached) : []);
     } catch { state.ledgers = []; }
+    ensureDemoLedgers();
     state.loading = false;
     render();
     return;
