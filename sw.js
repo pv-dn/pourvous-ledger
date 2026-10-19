@@ -1,4 +1,4 @@
-const CACHE_NAME = "pourvous-ledger-v16";
+const CACHE_NAME = "pourvous-ledger-v17";
 const SHELL = [
   "./index.html",
   "./guide.html",
