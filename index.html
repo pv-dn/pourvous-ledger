@@ -299,7 +299,7 @@ function bindInstallButtons() {
 
 function registerServiceWorkerLater() {
   if (!("serviceWorker" in navigator)) return;
-  const run = () => navigator.serviceWorker.register("./sw.js?v=13", { updateViaCache: "none" }).catch(() => {});
+  const run = () => navigator.serviceWorker.register("./sw.js?v=14", { updateViaCache: "none" }).catch(() => {});
   if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 5000 });
   else setTimeout(run, 3000);
 }
@@ -2154,6 +2154,7 @@ function render() {
             <span class="zoom-label">${Math.round(state.itemZoom * 100)}%</span>
             <button type="button" class="btn btn-ghost btn-zoom" id="btn-zoom-in" aria-label="品目を拡大" ${state.itemZoom >= ZOOM_MAX ? "disabled" : ""}>＋</button>
           </div>
+          <a class="btn btn-ghost" id="btn-guide" href="./guide.html" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center">ガイド</a>
           <button type="button" class="btn btn-ghost install-btn hidden" id="btn-install">インストール</button>
           ${SKIP_LOGIN && state.demoMode ? "" : `<button class="btn btn-ghost" id="btn-logout">${state.demoMode ? "終了" : "業務終了"}</button>`}
         </div>
