@@ -172,9 +172,10 @@ select,input[type=date]{width:100%;padding:10px 12px;border:1px solid #ddd;borde
 .master-toolbar-actions .master-add{margin:0;flex:1;min-width:140px}
 .master-toolbar-actions .btn{padding:11px 12px;font-size:12px;background:#fff;border:1px solid #ddd;color:#1a1a2e}
 .master-add{width:100%;padding:11px;border:1px dashed #bbb;border-radius:8px;background:#faf9f7;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:#1a1a2e}
-.master-form-panel{background:#fff;border-radius:16px;width:100%;max-width:480px;padding:20px}
+.master-form-panel{background:#fff;border-radius:16px;width:100%;max-width:520px;max-height:88vh;overflow:auto;padding:20px}
 .master-form-panel h3{font-size:17px;margin-bottom:14px}
-.master-form-panel input{width:100%;padding:11px;border:1px solid #ddd;border-radius:8px;font-size:15px;font-family:inherit;margin-bottom:10px}
+.master-form-panel input,.master-form-panel select{width:100%;padding:11px;border:1px solid #ddd;border-radius:8px;font-size:15px;font-family:inherit;margin-bottom:10px;box-sizing:border-box;background:#fff}
+.master-form-search-list{display:flex;flex-direction:column;gap:6px;max-height:28vh;overflow:auto;margin:0 0 12px}
 .master-form-actions{display:flex;gap:8px;margin-top:6px}
 .master-form-actions .btn{flex:1;padding:12px}
 .item-add-btn{width:100%;margin-top:8px;padding:10px;border:1px dashed #5b9bd5;border-radius:8px;background:#f0f7fc;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;color:#0288D1}
@@ -289,7 +290,7 @@ function bindInstallButtons() {
 
 function registerServiceWorkerLater() {
   if (!("serviceWorker" in navigator)) return;
-  const run = () => navigator.serviceWorker.register("./sw.js?v=11", { updateViaCache: "none" }).catch(() => {});
+  const run = () => navigator.serviceWorker.register("./sw.js?v=12", { updateViaCache: "none" }).catch(() => {});
   if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 5000 });
   else setTimeout(run, 3000);
 }
@@ -940,6 +941,52 @@ function itemYomiSortKey(p) {
   return y || `\uffff${normalizeItemName(p.name)}`;
 }
 
+/** 品目追加時：他客先など既存マスタから探す（当客先に無いもの） */
+function searchItemsForMasterAdd(customer, q = "", kanaRow = "all") {
+  const onCustomer = new Set(
+    customerItemRows(customer).map(p => normalizeItemName(p.name))
+  );
+  const query = normalizeItemName(q);
+  const yomiQuery = normalizeYomiKey(q);
+  const rowFilter = String(kanaRow || "all");
+  if (!query && (!rowFilter || rowFilter === "")) return [];
+  if (!query && rowFilter === "all") return [];
+  const seen = new Set();
+  const hits = [];
+  for (const p of state.prices) {
+    const name = (p.name || "").trim();
+    if (!name) continue;
+    const nk = normalizeItemName(name);
+    if (onCustomer.has(nk) || seen.has(nk)) continue;
+    if (rowFilter && rowFilter !== "all") {
+      if (kanaRowOf(p.yomi, name) !== rowFilter) continue;
+    }
+    if (query) {
+      const codeKey = String(p.code || "").toLowerCase();
+      const yomiKey = normalizeYomiKey(p.yomi);
+      const hit =
+        nk.includes(query) ||
+        codeKey.includes(query) ||
+        (yomiKey && yomiQuery && yomiKey.includes(yomiQuery));
+      if (!hit) continue;
+    }
+    seen.add(nk);
+    hits.push({
+      name,
+      yomi: p.yomi || "",
+      code: p.code || "",
+      fromCustomer: p.customer || ""
+    });
+  }
+  hits.sort((a, b) => {
+    const ay = itemYomiSortKey(a);
+    const by = itemYomiSortKey(b);
+    if (ay !== by) return ay < by ? -1 : 1;
+    return normalizeItemName(a.name) < normalizeItemName(b.name) ? -1 : 1;
+  });
+  return hits.slice(0, 50);
+}
+
 /** 客先品目一覧の絞り込み（元の index を保持） */
 function filterCustomerItemsWithIndex(customer, q = "", kanaRow = "all") {
   const rows = customerItemRows(customer);
@@ -1098,7 +1145,9 @@ function openMasterItemForm(mode, customer, index = -1) {
     index,
     name: row?.name || "",
     yomi: row?.yomi || "",
-    code: row?.code || (mode === "add" ? nextItemCode() : "")
+    code: row?.code || (mode === "add" ? nextItemCode() : ""),
+    searchQuery: "",
+    searchKana: "all"
   };
   render();
 }
@@ -1969,17 +2018,55 @@ function renderMasterForm() {
     </div>`;
   }
   const isCustomer = f.kind === "customer";
+  const isItemAdd = !isCustomer && f.mode === "add";
   const title = isCustomer
     ? (f.mode === "add" ? "客先を追加" : "客先を編集")
     : (f.mode === "add" ? "品目を追加" : "品目を編集");
   const groupOpts = existingCustomerGroups()
     .map(g => `<option value="${esc(g)}"></option>`)
     .join("");
+  const custName = f.customer || state.masterCustomer;
+  const formHits = isItemAdd
+    ? searchItemsForMasterAdd(custName, f.searchQuery || "", f.searchKana || "all")
+    : [];
+  const formHasFilter = !!(String(f.searchQuery || "").trim() || (f.searchKana && f.searchKana !== "all" && f.searchKana !== ""));
+  const formHitRows = formHits.length
+    ? formHits.map((h, i) => `
+      <button type="button" class="item-add-hit" data-master-pick="${i}">
+        <div>
+          <div class="item-add-hit-title">${esc(h.name)}</div>
+          <div class="item-add-hit-meta">${h.yomi ? `読み ${esc(h.yomi)} · ` : ""}${h.code ? `コード ${esc(h.code)} · ` : ""}${h.fromCustomer ? esc(h.fromCustomer) : ""}</div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:#0288D1">使う</span>
+      </button>`).join("")
+    : (isItemAdd
+      ? `<div class="empty" style="padding:14px">${formHasFilter ? "該当なし（この客先に無い品目のみ表示）" : "あ行を選ぶかキーワードを入力 → 既存品目をコピーできます"}</div>`
+      : "");
+  const kanaOpts = KANA_ROW_OPTIONS.filter(r => r.key !== "").map(r =>
+    `<option value="${esc(r.key)}" ${(f.searchKana || "all") === r.key ? "selected" : ""}>${esc(r.label)}</option>`
+  ).join("");
   return `
     <div class="detail-overlay" id="master-form-overlay">
       <div class="master-form-panel">
         <h3>${title}</h3>
-        ${!isCustomer ? `<p style="font-size:13px;color:#666;margin-bottom:10px">客先：${esc(f.customer || state.masterCustomer)}</p>` : ""}
+        ${!isCustomer ? `<p style="font-size:13px;color:#666;margin-bottom:10px">客先：${esc(custName)}</p>` : ""}
+        ${isItemAdd ? `
+        <div style="background:#f7fafc;border:1px solid #e2eef6;border-radius:10px;padding:10px 12px;margin-bottom:14px">
+          <div class="lbl" style="margin-bottom:6px">既存マスタから探す</div>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:8px">
+            <div>
+              <label class="lbl">行</label>
+              <select id="master-form-search-kana">${kanaOpts}</select>
+            </div>
+            <div>
+              <label class="lbl">キーワード</label>
+              <input type="text" id="master-form-search-query" value="${esc(f.searchQuery || "")}" placeholder="品名・読み・コード">
+            </div>
+          </div>
+          <div class="master-form-search-list">${formHitRows}</div>
+        </div>
+        <p style="font-size:12px;font-weight:700;color:#555;margin:0 0 8px">または手入力で新規登録</p>
+        ` : ""}
         <label class="lbl">${isCustomer ? "客先名" : "品名"}</label>
         <input type="text" id="master-form-name" value="${esc(f.name)}" placeholder="${isCustomer ? "例：(株)サイゼリヤ 神奈川工場" : "例：作業着（上）"}">
         ${isCustomer ? `<label class="lbl">グループ（任意）</label>
@@ -2315,7 +2402,62 @@ function render() {
   if (masterCancel) masterCancel.onclick = () => { state.masterForm = null; render(); };
   if (masterOverlay) masterOverlay.onclick = e => { if (e.target === masterOverlay) { state.masterForm = null; render(); } };
   const masterNameInput = document.getElementById("master-form-name");
-  if (masterNameInput) masterNameInput.onkeydown = e => { if (e.key === "Enter") submitMasterForm(); };
+  if (masterNameInput) {
+    masterNameInput.oninput = e => {
+      if (state.masterForm) state.masterForm.name = e.target.value;
+    };
+    masterNameInput.onkeydown = e => { if (e.key === "Enter") submitMasterForm(); };
+  }
+  const masterYomiInput = document.getElementById("master-form-yomi");
+  if (masterYomiInput) {
+    masterYomiInput.oninput = e => {
+      if (state.masterForm) state.masterForm.yomi = e.target.value;
+    };
+  }
+  const masterCodeInput = document.getElementById("master-form-code");
+  if (masterCodeInput) {
+    masterCodeInput.oninput = e => {
+      if (state.masterForm) state.masterForm.code = e.target.value;
+    };
+  }
+  const formSearchKana = document.getElementById("master-form-search-kana");
+  if (formSearchKana && state.masterForm) {
+    formSearchKana.onchange = e => {
+      state.masterForm.searchKana = e.target.value;
+      render();
+    };
+  }
+  const formSearchQuery = document.getElementById("master-form-search-query");
+  if (formSearchQuery && state.masterForm) {
+    formSearchQuery.oninput = e => {
+      state.masterForm.searchQuery = e.target.value;
+      render();
+      const q = document.getElementById("master-form-search-query");
+      if (q) {
+        q.focus();
+        const len = q.value.length;
+        q.setSelectionRange(len, len);
+      }
+    };
+  }
+  if (state.masterForm?.kind === "item" && state.masterForm.mode === "add") {
+    const custName = state.masterForm.customer || state.masterCustomer;
+    const formHits = searchItemsForMasterAdd(
+      custName,
+      state.masterForm.searchQuery || "",
+      state.masterForm.searchKana || "all"
+    );
+    document.querySelectorAll("[data-master-pick]").forEach(btn => {
+      btn.onclick = () => {
+        const hit = formHits[+btn.dataset.masterPick];
+        if (!hit || !state.masterForm) return;
+        state.masterForm.name = hit.name;
+        state.masterForm.yomi = hit.yomi || "";
+        toast("既存品目をコピーしました。保存でこの客先に登録できます");
+        render();
+      };
+    });
+  }
 
   document.querySelectorAll(".nk").forEach(btn => {
     btn.onclick = () => numpadPress(btn.dataset.k);
