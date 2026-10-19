@@ -164,6 +164,18 @@ select,input[type=date],input[type=text]{width:100%;padding:10px 12px;border:1px
 .master-toolbar{display:flex;gap:8px;margin-bottom:10px;align-items:center}
 .master-toolbar select{flex:1;padding:10px;border:1px solid #9fc4de;border-radius:8px;font-size:14px;font-family:inherit;background:#e8f3fa}
 .master-list{display:flex;flex-direction:column;gap:6px}
+.master-list.cols{display:grid;grid-template-columns:repeat(var(--master-cols,3),minmax(0,1fr));gap:8px;--mz:1}
+.master-list.cols .master-empty{grid-column:1/-1}
+.master-list.cols .master-row{flex-direction:column;align-items:stretch;min-height:100%;box-sizing:border-box}
+.master-list.cols .master-row-actions{justify-content:flex-end;margin-top:8px;flex-wrap:wrap}
+.master-list.cols .master-row-title{font-size:calc(15px * var(--mz,1))}
+.master-list.cols .master-row-meta{font-size:calc(11px * var(--mz,1))}
+.master-list.cols .master-btn{font-size:calc(12px * var(--mz,1));padding:calc(6px * var(--mz,1)) calc(10px * var(--mz,1))}
+.master-view-controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px}
+.master-view-controls .row-btns,.master-view-controls .zoom-btns{display:flex;align-items:center;gap:4px}
+.master-view-controls .btn-mcol,.master-view-controls .btn-mzoom{min-width:auto;padding:6px 10px;font-size:12px;font-weight:700;border:1px solid #9ecbb0;border-radius:8px;background:#eef8f1;color:#1a4a32;cursor:pointer;font-family:inherit}
+.master-view-controls .btn-mcol.active{background:#1a4a32;color:#fff;border-color:#1a4a32}
+.master-view-controls .mzoom-label{font-size:12px;font-weight:700;color:#1a4a32;min-width:3.2em;text-align:center}
 .master-row{display:flex;align-items:center;gap:8px;background:#fbfcfd;border:1px solid #dce6ee;border-radius:8px;padding:10px 12px}
 .master-row-body{flex:1;min-width:0}
 .master-row-title{font-size:15px;font-weight:700;word-break:break-all}
@@ -298,7 +310,7 @@ function bindInstallButtons() {
 
 function registerServiceWorkerLater() {
   if (!("serviceWorker" in navigator)) return;
-  const run = () => navigator.serviceWorker.register("./sw.js?v=21", { updateViaCache: "none" }).catch(() => {});
+  const run = () => navigator.serviceWorker.register("./sw.js?v=22", { updateViaCache: "none" }).catch(() => {});
   if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 5000 });
   else setTimeout(run, 3000);
 }
@@ -552,8 +564,35 @@ const ZOOM_MAX = 1.5;
 const ZOOM_STEP = 0.1;
 const ITEM_COLS_KEY = "lg_itemCols";
 const ITEM_COLS_OPTIONS = [2, 3, 4];
+const MASTER_ITEM_COLS_KEY = "lg_masterItemCols";
+const MASTER_ITEM_ZOOM_KEY = "lg_masterItemZoom";
 /** 2列表示で画面に収める基準行数（タブレット高さに合わせて行高を決める） */
 const BASE_VISIBLE_ROWS = 15;
+
+function loadMasterItemCols() {
+  const v = parseInt(localStorage.getItem(MASTER_ITEM_COLS_KEY), 10);
+  return ITEM_COLS_OPTIONS.includes(v) ? v : 3;
+}
+
+function setMasterItemCols(cols) {
+  const n = Number(cols);
+  if (!ITEM_COLS_OPTIONS.includes(n)) return;
+  if (state.masterItemCols === n) return;
+  state.masterItemCols = n;
+  localStorage.setItem(MASTER_ITEM_COLS_KEY, String(n));
+  render();
+}
+
+function loadMasterItemZoom() {
+  const v = parseFloat(localStorage.getItem(MASTER_ITEM_ZOOM_KEY));
+  return Number.isFinite(v) ? Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v)) : 1;
+}
+
+function setMasterItemZoom(next) {
+  state.masterItemZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(next * 100) / 100));
+  localStorage.setItem(MASTER_ITEM_ZOOM_KEY, String(state.masterItemZoom));
+  render();
+}
 
 function loadItemCols() {
   const v = parseInt(localStorage.getItem(ITEM_COLS_KEY), 10);
@@ -695,6 +734,8 @@ const state = {
   masterCustomer: "",
   masterItemKanaRow: "all",
   masterItemQuery: "",
+  masterItemCols: loadMasterItemCols(),
+  masterItemZoom: loadMasterItemZoom(),
   masterForm: null,
   groupOrder: [],
 };
@@ -1991,9 +2032,21 @@ function renderMasterTab() {
           <input type="text" id="master-item-query" value="${esc(state.masterItemQuery)}" placeholder="キーワード">
         </div>
       </div>
-      <p class="sync-note" style="margin:0 0 8px">${totalItems ? `${filteredItems.length} / ${totalItems} 件` : "品目なし"} · 読み仮名順</p>
+      <div class="master-view-controls">
+        <div class="row-btns" role="group" aria-label="品目の列数">
+          ${ITEM_COLS_OPTIONS.map(c =>
+            `<button type="button" class="btn-mcol${state.masterItemCols === c ? " active" : ""}" data-master-cols="${c}">${c}列</button>`
+          ).join("")}
+        </div>
+        <div class="zoom-btns" role="group" aria-label="品目の表示倍率">
+          <button type="button" class="btn-mzoom" id="master-zoom-out" aria-label="縮小" ${state.masterItemZoom <= ZOOM_MIN ? "disabled" : ""}>−</button>
+          <span class="mzoom-label">${Math.round(state.masterItemZoom * 100)}%</span>
+          <button type="button" class="btn-mzoom" id="master-zoom-in" aria-label="拡大" ${state.masterItemZoom >= ZOOM_MAX ? "disabled" : ""}>＋</button>
+        </div>
+      </div>
+      <p class="sync-note" style="margin:0 0 8px">${totalItems ? `${filteredItems.length} / ${totalItems} 件` : "品目なし"} · 読み仮名順 · ${state.masterItemCols}列</p>
       <button type="button" class="master-add" id="master-add-item" ${state.customers.length ? "" : "disabled"}>＋ 品目を追加</button>
-      <div class="master-list" style="margin-top:10px">${itemRows || `<div class="empty" style="padding:24px">${esc(itemEmptyMsg)}</div>`}</div>`;
+      <div class="master-list cols" style="margin-top:10px;--master-cols:${state.masterItemCols};--mz:${state.masterItemZoom}">${itemRows || `<div class="empty master-empty" style="padding:24px">${esc(itemEmptyMsg)}</div>`}</div>`;
   }
 
   return `
@@ -2396,6 +2449,13 @@ function render() {
         }
       };
     }
+    document.querySelectorAll("[data-master-cols]").forEach(btn => {
+      btn.onclick = () => setMasterItemCols(+btn.dataset.masterCols);
+    });
+    const mzOut = document.getElementById("master-zoom-out");
+    const mzIn = document.getElementById("master-zoom-in");
+    if (mzOut) mzOut.onclick = () => setMasterItemZoom(state.masterItemZoom - ZOOM_STEP);
+    if (mzIn) mzIn.onclick = () => setMasterItemZoom(state.masterItemZoom + ZOOM_STEP);
     const addItem = document.getElementById("master-add-item");
     if (addItem) addItem.onclick = () => openMasterItemForm("add", state.masterCustomer);
     document.querySelectorAll("[data-master-edit-item]").forEach(btn => {
