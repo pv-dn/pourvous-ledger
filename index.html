@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
@@ -335,9 +335,9 @@ function registerServiceWorkerLater() {
 }
 
 const DEMO_CUSTOMERS = [
-  { id: "D01", name: "サンプル商事", group: "法人" },
-  { id: "D02", name: "デモレストラン", group: "飲食" },
-  { id: "D03", name: "テスト病院", group: "医療" }
+  { id: "D01", name: "客先A", group: "グループ1" },
+  { id: "D02", name: "客先B", group: "グループ2" },
+  { id: "D03", name: "客先C", group: "グループ3" }
 ];
 
 const UNGROUPED_LABEL = "未分類";
@@ -517,64 +517,64 @@ async function deleteMasterGroup(name) {
 }
 
 const DEMO_PRICES = [
-  { customer: "サンプル商事", code: "N001", name: "作業着（上）", yomi: "さぎょうぎうえ" },
-  { customer: "サンプル商事", code: "N002", name: "作業着（下）", yomi: "さぎょうぎした" },
-  { customer: "サンプル商事", code: "N003", name: "エプロン（短）", yomi: "えぷろんみじか" },
-  { customer: "サンプル商事", code: "N004", name: "エプロン（長）", yomi: "えぷろんなが" },
-  { customer: "サンプル商事", code: "N005", name: "タオル（大）", yomi: "たおるだい" },
-  { customer: "サンプル商事", code: "N006", name: "タオル（中）", yomi: "たおるちゅう" },
-  { customer: "サンプル商事", code: "N007", name: "タオル（小）", yomi: "たおるしょう" },
-  { customer: "サンプル商事", code: "N008", name: "手袋", yomi: "てぶくろ" },
-  { customer: "サンプル商事", code: "N009", name: "帽子", yomi: "ぼうし" },
-  { customer: "サンプル商事", code: "N010", name: "マスク", yomi: "ますく" },
-  { customer: "サンプル商事", code: "N011", name: "白衣（上）", yomi: "はくいうえ" },
-  { customer: "サンプル商事", code: "N012", name: "白衣（下）", yomi: "はくいした" },
-  { customer: "サンプル商事", code: "N013", name: "ベスト", yomi: "べすと" },
-  { customer: "サンプル商事", code: "N014", name: "防寒ジャンパー", yomi: "ぼうかんじゃんぱー" },
-  { customer: "サンプル商事", code: "N015", name: "ズボン", yomi: "ずぼん" },
-  { customer: "サンプル商事", code: "N016", name: "シャツ（半袖）", yomi: "しゃつはんそで" },
-  { customer: "サンプル商事", code: "N017", name: "シャツ（長袖）", yomi: "しゃつながそで" },
-  { customer: "サンプル商事", code: "N018", name: "ポロシャツ", yomi: "ぽろしゃつ" },
-  { customer: "サンプル商事", code: "N019", name: "クリーニングバッグ", yomi: "くりーにんぐばっぐ" },
-  { customer: "サンプル商事", code: "N020", name: "ネーム札", yomi: "ねーむふだ" },
-  { customer: "サンプル商事", code: "N021", name: "腕章", yomi: "わんしょう" },
-  { customer: "サンプル商事", code: "N022", name: "腰巻き", yomi: "こしまき" },
-  { customer: "サンプル商事", code: "N023", name: "三角巾", yomi: "さんかくきん" },
-  { customer: "サンプル商事", code: "N024", name: "靴下", yomi: "くつした" },
-  { customer: "サンプル商事", code: "N025", name: "軍手", yomi: "ぐんて" },
-  { customer: "デモレストラン", code: "N001", name: "コックコート", yomi: "こっくこーと" },
-  { customer: "デモレストラン", code: "N002", name: "前掛け（短）", yomi: "まえかけみじか" },
-  { customer: "デモレストラン", code: "N003", name: "前掛け（長）", yomi: "まえかけなが" },
-  { customer: "デモレストラン", code: "N004", name: "ナプキン", yomi: "なぷきん" },
-  { customer: "デモレストラン", code: "N005", name: "テーブルクロス", yomi: "てーぶるくろす" },
-  { customer: "デモレストラン", code: "N006", name: "ランチョンマット", yomi: "らんちょんまっと" },
-  { customer: "デモレストラン", code: "N007", name: "座席カバー", yomi: "ざせきかばー" },
-  { customer: "デモレストラン", code: "N008", name: "厨房タオル", yomi: "ちゅうぼうたおる" },
-  { customer: "デモレストラン", code: "N009", name: "ダスター", yomi: "だすたー" },
-  { customer: "デモレストラン", code: "N010", name: "三角巾", yomi: "さんかくきん" },
-  { customer: "デモレストラン", code: "N011", name: "ハンバーガー帽", yomi: "はんばーがーぼう" },
-  { customer: "デモレストラン", code: "N012", name: "ホールエプロン", yomi: "ほーるえぷろん" },
-  { customer: "デモレストラン", code: "N013", name: "バンダナ", yomi: "ばんだな" },
-  { customer: "デモレストラン", code: "N014", name: "ふきん", yomi: "ふきん" },
-  { customer: "デモレストラン", code: "N015", name: "厨房靴", yomi: "ちゅうぼうぐつ" },
-  { customer: "テスト病院", code: "N001", name: "患者着（上）", yomi: "かんじゃぎうえ" },
-  { customer: "テスト病院", code: "N002", name: "患者着（下）", yomi: "かんじゃぎした" },
-  { customer: "テスト病院", code: "N003", name: "看護師白衣", yomi: "かんごしはくい" },
-  { customer: "テスト病院", code: "N004", name: "看護師ズボン", yomi: "かんごしずぼん" },
-  { customer: "テスト病院", code: "N005", name: "スクラブ（上）", yomi: "すくらぶうえ" },
-  { customer: "テスト病院", code: "N006", name: "スクラブ（下）", yomi: "すくらぶした" },
-  { customer: "テスト病院", code: "N007", name: "ガウン", yomi: "がうん" },
-  { customer: "テスト病院", code: "N008", name: "シーツ（シングル）", yomi: "しーつしんぐる" },
-  { customer: "テスト病院", code: "N009", name: "シーツ（ダブル）", yomi: "しーつだぶる" },
-  { customer: "テスト病院", code: "N010", name: "枕カバー", yomi: "まくらかばー" },
-  { customer: "テスト病院", code: "N011", name: "バスタオル", yomi: "ばすたおる" },
-  { customer: "テスト病院", code: "N012", name: "フェイスタオル", yomi: "ふぇいすたおる" },
-  { customer: "テスト病院", code: "N013", name: "バスマット", yomi: "ばすまっと" },
-  { customer: "テスト病院", code: "N014", name: "カーテン", yomi: "かーてん" },
-  { customer: "テスト病院", code: "N015", name: "オペ着", yomi: "おぺぎ" },
-  { customer: "テスト病院", code: "N016", name: "帽子（手術用）", yomi: "ぼうししゅじゅつよう" },
-  { customer: "テスト病院", code: "N017", name: "マスク（使い捨て）", yomi: "ますくつかいすて" },
-  { customer: "テスト病院", code: "N018", name: "足袋", yomi: "たび" }
+  { customer: "客先A", code: "N001", name: "作業着（上）", yomi: "さぎょうぎうえ" },
+  { customer: "客先A", code: "N002", name: "作業着（下）", yomi: "さぎょうぎした" },
+  { customer: "客先A", code: "N003", name: "エプロン（短）", yomi: "えぷろんみじか" },
+  { customer: "客先A", code: "N004", name: "エプロン（長）", yomi: "えぷろんなが" },
+  { customer: "客先A", code: "N005", name: "タオル（大）", yomi: "たおるだい" },
+  { customer: "客先A", code: "N006", name: "タオル（中）", yomi: "たおるちゅう" },
+  { customer: "客先A", code: "N007", name: "タオル（小）", yomi: "たおるしょう" },
+  { customer: "客先A", code: "N008", name: "手袋", yomi: "てぶくろ" },
+  { customer: "客先A", code: "N009", name: "帽子", yomi: "ぼうし" },
+  { customer: "客先A", code: "N010", name: "マスク", yomi: "ますく" },
+  { customer: "客先A", code: "N011", name: "白衣（上）", yomi: "はくいうえ" },
+  { customer: "客先A", code: "N012", name: "白衣（下）", yomi: "はくいした" },
+  { customer: "客先A", code: "N013", name: "ベスト", yomi: "べすと" },
+  { customer: "客先A", code: "N014", name: "防寒ジャンパー", yomi: "ぼうかんじゃんぱー" },
+  { customer: "客先A", code: "N015", name: "ズボン", yomi: "ずぼん" },
+  { customer: "客先A", code: "N016", name: "シャツ（半袖）", yomi: "しゃつはんそで" },
+  { customer: "客先A", code: "N017", name: "シャツ（長袖）", yomi: "しゃつながそで" },
+  { customer: "客先A", code: "N018", name: "ポロシャツ", yomi: "ぽろしゃつ" },
+  { customer: "客先A", code: "N019", name: "クリーニングバッグ", yomi: "くりーにんぐばっぐ" },
+  { customer: "客先A", code: "N020", name: "ネーム札", yomi: "ねーむふだ" },
+  { customer: "客先A", code: "N021", name: "腕章", yomi: "わんしょう" },
+  { customer: "客先A", code: "N022", name: "腰巻き", yomi: "こしまき" },
+  { customer: "客先A", code: "N023", name: "三角巾", yomi: "さんかくきん" },
+  { customer: "客先A", code: "N024", name: "靴下", yomi: "くつした" },
+  { customer: "客先A", code: "N025", name: "軍手", yomi: "ぐんて" },
+  { customer: "客先B", code: "N001", name: "コックコート", yomi: "こっくこーと" },
+  { customer: "客先B", code: "N002", name: "前掛け（短）", yomi: "まえかけみじか" },
+  { customer: "客先B", code: "N003", name: "前掛け（長）", yomi: "まえかけなが" },
+  { customer: "客先B", code: "N004", name: "ナプキン", yomi: "なぷきん" },
+  { customer: "客先B", code: "N005", name: "テーブルクロス", yomi: "てーぶるくろす" },
+  { customer: "客先B", code: "N006", name: "ランチョンマット", yomi: "らんちょんまっと" },
+  { customer: "客先B", code: "N007", name: "座席カバー", yomi: "ざせきかばー" },
+  { customer: "客先B", code: "N008", name: "厨房タオル", yomi: "ちゅうぼうたおる" },
+  { customer: "客先B", code: "N009", name: "ダスター", yomi: "だすたー" },
+  { customer: "客先B", code: "N010", name: "三角巾", yomi: "さんかくきん" },
+  { customer: "客先B", code: "N011", name: "ハンバーガー帽", yomi: "はんばーがーぼう" },
+  { customer: "客先B", code: "N012", name: "ホールエプロン", yomi: "ほーるえぷろん" },
+  { customer: "客先B", code: "N013", name: "バンダナ", yomi: "ばんだな" },
+  { customer: "客先B", code: "N014", name: "ふきん", yomi: "ふきん" },
+  { customer: "客先B", code: "N015", name: "厨房靴", yomi: "ちゅうぼうぐつ" },
+  { customer: "客先C", code: "N001", name: "患者着（上）", yomi: "かんじゃぎうえ" },
+  { customer: "客先C", code: "N002", name: "患者着（下）", yomi: "かんじゃぎした" },
+  { customer: "客先C", code: "N003", name: "看護師白衣", yomi: "かんごしはくい" },
+  { customer: "客先C", code: "N004", name: "看護師ズボン", yomi: "かんごしずぼん" },
+  { customer: "客先C", code: "N005", name: "スクラブ（上）", yomi: "すくらぶうえ" },
+  { customer: "客先C", code: "N006", name: "スクラブ（下）", yomi: "すくらぶした" },
+  { customer: "客先C", code: "N007", name: "ガウン", yomi: "がうん" },
+  { customer: "客先C", code: "N008", name: "シーツ（シングル）", yomi: "しーつしんぐる" },
+  { customer: "客先C", code: "N009", name: "シーツ（ダブル）", yomi: "しーつだぶる" },
+  { customer: "客先C", code: "N010", name: "枕カバー", yomi: "まくらかばー" },
+  { customer: "客先C", code: "N011", name: "バスタオル", yomi: "ばすたおる" },
+  { customer: "客先C", code: "N012", name: "フェイスタオル", yomi: "ふぇいすたおる" },
+  { customer: "客先C", code: "N013", name: "バスマット", yomi: "ばすまっと" },
+  { customer: "客先C", code: "N014", name: "カーテン", yomi: "かーてん" },
+  { customer: "客先C", code: "N015", name: "オペ着", yomi: "おぺぎ" },
+  { customer: "客先C", code: "N016", name: "帽子（手術用）", yomi: "ぼうししゅじゅつよう" },
+  { customer: "客先C", code: "N017", name: "マスク（使い捨て）", yomi: "ますくつかいすて" },
+  { customer: "客先C", code: "N018", name: "足袋", yomi: "たび" }
 ];
 
 /** 試用・仮運用で履歴が空のときだけ入れる見本台帳 */
@@ -600,9 +600,9 @@ function buildDemoLedgers() {
   return [
     {
       id: base - 3,
-      customer: "サンプル商事",
+      customer: "客先A",
       deliveryDate: demoDateOffset(1),
-      items: demoLedgerItems("サンプル商事", [
+      items: demoLedgerItems("客先A", [
         ["N001", 20, 18], ["N002", 20, 18], ["N004", 8, 8], ["N005", 30, 28], ["N025", 40, 40]
       ]),
       createdAt: new Date(base - 3 * 3600000).toISOString(),
@@ -611,9 +611,9 @@ function buildDemoLedgers() {
     },
     {
       id: base - 2,
-      customer: "デモレストラン",
+      customer: "客先B",
       deliveryDate: demoDateOffset(3),
-      items: demoLedgerItems("デモレストラン", [
+      items: demoLedgerItems("客先B", [
         ["N001", 6, 6], ["N003", 10, 9], ["N004", 50, 48], ["N008", 20, 20], ["N012", 4, 4]
       ]),
       createdAt: new Date(base - 2 * 86400000).toISOString(),
@@ -622,9 +622,9 @@ function buildDemoLedgers() {
     },
     {
       id: base - 1,
-      customer: "テスト病院",
+      customer: "客先C",
       deliveryDate: demoDateOffset(5),
-      items: demoLedgerItems("テスト病院", [
+      items: demoLedgerItems("客先C", [
         ["N001", 15, 12], ["N002", 15, 12], ["N003", 8, 8], ["N008", 25, 24], ["N011", 40, 40]
       ]),
       createdAt: new Date(base - 5 * 86400000).toISOString(),
@@ -1326,7 +1326,7 @@ async function loadLedgerMaster() {
     if (!loadLedgerMasterFromCache()) {
       state.customers = DEMO_CUSTOMERS.map(c => ({ ...c }));
       state.prices = DEMO_PRICES.map(p => ({ ...p }));
-      state.groupOrder = ["法人", "飲食", "医療"];
+      state.groupOrder = ["グループ1", "グループ2", "グループ3"];
     }
     fillDemoYomiIfMissing();
     state.prices = normalizeMasterItems(state.prices);
@@ -2365,7 +2365,7 @@ function renderMasterForm() {
         <p style="font-size:12px;font-weight:700;color:#555;margin:0 0 8px">または手入力で新規登録</p>
         ` : ""}
         <label class="lbl">${isCustomer ? "客先名" : "品名"}</label>
-        <input type="text" id="master-form-name" value="${esc(f.name)}" placeholder="${isCustomer ? "例：(株)サイゼリヤ 神奈川工場" : "例：作業着（上）"}">
+        <input type="text" id="master-form-name" value="${esc(f.name)}" placeholder="${isCustomer ? "例：客先A" : "例：作業着（上）"}">
         ${isCustomer ? `<label class="lbl">グループ（任意）</label>
         <input type="text" id="master-form-group" list="master-group-list" value="${esc(f.group || "")}" placeholder="例：医療 / 飲食 / 法人">
         <datalist id="master-group-list">${groupOpts}</datalist>
