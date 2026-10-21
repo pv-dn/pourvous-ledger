@@ -243,8 +243,8 @@ const HISTORY_MONTHS = 2;
 const MASTER_CUST_KEY = "lg_master_customers";
 const MASTER_ITEMS_KEY = "lg_master_items";
 const MASTER_GROUP_KEY = "lg_master_groups";
-// デモURL: https://pv-dn.github.io/purims-ledger-demo/
-const IS_DEMO = /\/purims-ledger-demo(\/|$)/i.test(location.pathname) || /(?:^|[?&])demo=1(?:&|$)/.test(location.search);
+// デモURL: https://pv-dn.github.io/primus-ledger-demo/（旧: purims-ledger-demo も可）
+const IS_DEMO = /\/(?:primus|purims)-ledger-demo(\/|$)/i.test(location.pathname) || /(?:^|[?&])demo=1(?:&|$)/.test(location.search);
 /** お試しURLは trial、仮運用/ローカル試用は demo（本番クラウドと分離） */
 const DEMO_STORE = IS_DEMO ? "trial" : "demo";
 const MASTER_CUST_KEY_DEMO = `lg_master_customers_${DEMO_STORE}`;
@@ -255,7 +255,7 @@ const LEDGERS_KEY_DEMO = `lg_ledgers_${DEMO_STORE}`;
 const BRIDGE_V14_KEY = "purims_demo_v14";
 const BRIDGE_REV_KEY = "purims_demo_bridge_rev";
 const BRIDGE_ISSUE_KEY = "purims_demo_issue_pending";
-const SLIP_DEMO_URL = "https://pv-dn.github.io/purims-demo/?from=ledger";
+const SLIP_DEMO_URL = "https://pv-dn.github.io/primus-demo/?from=ledger";
 if (IS_DEMO) {
   document.title = "【デモ】入出荷台帳";
 }
