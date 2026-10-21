@@ -20,6 +20,7 @@ body{font-family:"Noto Sans JP",-apple-system,sans-serif;background:#f4f3ef;colo
 #root{height:100%}
 .hidden{display:none!important}
 .app{max-width:none;width:100%;height:100%;margin:0 auto;display:flex;flex-direction:column;overflow:hidden}
+.demo-banner{background:#b45309;color:#fff;text-align:center;padding:8px 12px;font-size:13px;font-weight:700;letter-spacing:.02em;flex-shrink:0}
 .header{background:#4FC3F7;color:#fff;padding:calc(8px * var(--ui-scale, 1)) calc(14px * var(--ui-scale, 1));display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;z-index:30}
 .header-brand{flex-shrink:0;min-width:0}
 .header h1{font-size:calc(16px * var(--ui-scale, 1));font-weight:700}
@@ -242,9 +243,17 @@ const HISTORY_MONTHS = 2;
 const MASTER_CUST_KEY = "lg_master_customers";
 const MASTER_ITEMS_KEY = "lg_master_items";
 const MASTER_GROUP_KEY = "lg_master_groups";
-const MASTER_CUST_KEY_DEMO = "lg_master_customers_demo";
-const MASTER_ITEMS_KEY_DEMO = "lg_master_items_demo";
-const MASTER_GROUP_KEY_DEMO = "lg_master_groups_demo";
+// デモURL: https://pv-dn.github.io/purims-ledger-demo/
+const IS_DEMO = /\/purims-ledger-demo(\/|$)/i.test(location.pathname) || /(?:^|[?&])demo=1(?:&|$)/.test(location.search);
+/** お試しURLは trial、仮運用/ローカル試用は demo（本番クラウドと分離） */
+const DEMO_STORE = IS_DEMO ? "trial" : "demo";
+const MASTER_CUST_KEY_DEMO = `lg_master_customers_${DEMO_STORE}`;
+const MASTER_ITEMS_KEY_DEMO = `lg_master_items_${DEMO_STORE}`;
+const MASTER_GROUP_KEY_DEMO = `lg_master_groups_${DEMO_STORE}`;
+const LEDGERS_KEY_DEMO = `lg_ledgers_${DEMO_STORE}`;
+if (IS_DEMO) {
+  document.title = "【デモ】入出荷台帳";
+}
 
 function sessionDayKey() {
   return todayInput();
@@ -271,6 +280,8 @@ async function endWorkDay() {
 const IS_LOCAL = location.hostname === "localhost" || location.hostname === "127.0.0.1";
 /** 運用開始まで true（ログイン省略・端末内保存）。本番ログイン必須にするときは false に戻す */
 const SKIP_LOGIN = true;
+/** ログイン省略で端末内保存にする条件（お試しURL含む） */
+const USE_LOCAL_DEMO = IS_DEMO || IS_LOCAL || SKIP_LOGIN;
 const IS_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 const IS_STANDALONE = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
 /** 想定は PC / タブレット。マスタはどちらでもフル編集可 */
@@ -813,6 +824,7 @@ function isActiveSession() {
 
 function sessionLabel() {
   if (state.demoMode) {
+    if (IS_DEMO) return "お試しデモ（本番と別・この端末のみ）";
     return SKIP_LOGIN && !IS_LOCAL
       ? "仮運用（ログイン省略・この端末のみ）"
       : "試用モード（ログイン省略）";
@@ -908,7 +920,7 @@ function applyLedgerRetention(ledgers) {
 }
 
 function cacheLedgers() {
-  const key = state.demoMode ? "lg_ledgers_demo" : "lg_ledgers";
+  const key = state.demoMode ? LEDGERS_KEY_DEMO : "lg_ledgers";
   try { localStorage.setItem(key, JSON.stringify(state.ledgers)); } catch {}
 }
 
@@ -1399,7 +1411,7 @@ async function loadMasters() {
   if (state.demoMode) {
     await loadLedgerMaster();
     try {
-      const cached = localStorage.getItem("lg_ledgers_demo");
+      const cached = localStorage.getItem(LEDGERS_KEY_DEMO);
       state.ledgers = applyLedgerRetention(cached ? JSON.parse(cached) : []);
     } catch { state.ledgers = []; }
     ensureDemoLedgers();
@@ -1761,7 +1773,8 @@ async function saveLedger() {
       cacheLedgers();
     }
     toast(state.demoMode
-      ? (SKIP_LOGIN && !IS_LOCAL ? "台帳を保存しました（仮運用・この端末のみ）" : "台帳を保存しました（試用・この端末のみ）")
+      ? (IS_DEMO ? "台帳を保存しました（デモ・この端末のみ）"
+        : SKIP_LOGIN && !IS_LOCAL ? "台帳を保存しました（仮運用・この端末のみ）" : "台帳を保存しました（試用・この端末のみ）")
       : "台帳を保存しました");
     state.items = state.items.map(it => ({ ...it, inQty: "", outQty: "" }));
     state.focus = null;
@@ -1894,7 +1907,8 @@ function renderInputTab() {
         </div>
         <button type="button" class="item-add-btn" id="btn-item-add" ${state.customer ? "" : "disabled"}>＋ 品目を追加（自由入力 / マスタ検索）</button>
         <p class="sync-note">${state.demoMode
-          ? (SKIP_LOGIN && !IS_LOCAL ? "仮運用：この端末のマスタ・履歴のみ（運用開始後にログイン必須へ切替）" : "試用モード：この端末のマスタを使用")
+          ? (IS_DEMO ? "お試しデモ：この端末のマスタ・履歴のみ（本番と別）"
+            : SKIP_LOGIN && !IS_LOCAL ? "仮運用：この端末のマスタ・履歴のみ（運用開始後にログイン必須へ切替）" : "試用モード：この端末のマスタを使用")
           : "台帳アプリのマスタ（全端末で共有）"}</p>
       </div>
       <div class="items-panel" style="--iz:${state.itemZoom}">
@@ -2254,8 +2268,9 @@ function render() {
 
   document.getElementById("root").innerHTML = `
     <div class="app">
+      ${IS_DEMO ? `<div class="demo-banner">⚠ お試し（デモ）環境です。データは本番と別です。自由に触って大丈夫です。</div>` : ""}
       <header class="header">
-        <div class="header-brand"><h1>入出荷台帳</h1><div class="header-sub">${esc(sessionLabel())}</div></div>
+        <div class="header-brand"><h1>${IS_DEMO ? "【デモ】入出荷台帳" : "入出荷台帳"}</h1><div class="header-sub">${esc(sessionLabel())}</div></div>
         <nav class="header-tabs" aria-label="画面切替">
           <button type="button" class="header-tab${state.tab === 0 ? " active" : ""}" data-tab="0">入力</button>
           <button type="button" class="header-tab${state.tab === 1 ? " active" : ""}" data-tab="1">履歴${state.ledgers.length ? ` (${state.ledgers.length})` : ""}</button>
@@ -2274,7 +2289,7 @@ function render() {
           </div>
           <a class="btn btn-ghost" id="btn-guide" href="./guide.html" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center">ガイド</a>
           <button type="button" class="btn btn-ghost install-btn hidden" id="btn-install">インストール</button>
-          ${SKIP_LOGIN && state.demoMode ? "" : `<button class="btn btn-ghost" id="btn-logout">${state.demoMode ? "終了" : "業務終了"}</button>`}
+          ${USE_LOCAL_DEMO && state.demoMode ? "" : `<button class="btn btn-ghost" id="btn-logout">${state.demoMode ? "終了" : "業務終了"}</button>`}
         </div>
       </header>
       <div class="workspace">
@@ -2644,7 +2659,7 @@ async function startApp() {
     } catch {}
   }
   onAuthStateChanged(auth, async user => {
-    if (IS_LOCAL || SKIP_LOGIN) {
+    if (USE_LOCAL_DEMO) {
       startDemoMode();
       return;
     }
@@ -2670,7 +2685,7 @@ async function startApp() {
     }
   }, err => {
     console.error(err);
-    if (SKIP_LOGIN || IS_LOCAL) {
+    if (USE_LOCAL_DEMO) {
       startDemoMode();
       return;
     }
@@ -2680,7 +2695,7 @@ async function startApp() {
 
 startApp().catch(err => {
   console.error(err);
-  if (SKIP_LOGIN || IS_LOCAL) {
+  if (USE_LOCAL_DEMO) {
     startDemoMode();
     return;
   }
