@@ -251,6 +251,11 @@ const MASTER_CUST_KEY_DEMO = `lg_master_customers_${DEMO_STORE}`;
 const MASTER_ITEMS_KEY_DEMO = `lg_master_items_${DEMO_STORE}`;
 const MASTER_GROUP_KEY_DEMO = `lg_master_groups_${DEMO_STORE}`;
 const LEDGERS_KEY_DEMO = `lg_ledgers_${DEMO_STORE}`;
+/** 伝票デモと共有（同一オリジン localStorage） */
+const BRIDGE_V14_KEY = "purims_demo_v14";
+const BRIDGE_REV_KEY = "purims_demo_bridge_rev";
+const BRIDGE_ISSUE_KEY = "purims_demo_issue_pending";
+const SLIP_DEMO_URL = "https://pv-dn.github.io/purims-demo/?from=ledger";
 if (IS_DEMO) {
   document.title = "【デモ】入出荷台帳";
 }
@@ -631,9 +636,137 @@ function buildDemoLedgers() {
 
 function ensureDemoLedgers() {
   if (!state.demoMode) return;
+  if (IS_DEMO) return; // 伝票デモ連動時は見本履歴なし
   if (state.ledgers.length) return;
   state.ledgers = applyLedgerRetention(buildDemoLedgers());
   cacheLedgers();
+}
+
+function slipV14FromLedger() {
+  const groupNames = [...(state.groupOrder || [])];
+  for (const c of state.customers) {
+    const g = (c.group || "").trim();
+    if (g && !groupNames.includes(g)) groupNames.push(g);
+  }
+  const colors = ["#185fa5", "#0f6e56", "#854f0b", "#993556", "#534ab7", "#993c1d", "#3b6d11"];
+  const groups = groupNames.map((name, i) => ({ id: "lg" + (i + 1), name, color: colors[i % colors.length] }));
+  const groupIdByName = Object.fromEntries(groups.map(g => [g.name, g.id]));
+  const clients = {};
+  const clientGroups = {};
+  for (const c of state.customers) {
+    clients[c.name] = { items: [] };
+    const g = (c.group || "").trim();
+    if (g && groupIdByName[g]) clientGroups[c.name] = groupIdByName[g];
+  }
+  const productsMap = new Map();
+  for (const p of state.prices) {
+    if (!p.customer) continue;
+    if (!clients[p.customer]) clients[p.customer] = { items: [] };
+    if (!clients[p.customer].items.some(x => x.code === p.code)) {
+      clients[p.customer].items.push({ code: p.code, name: p.name });
+    }
+    if (p.code && !productsMap.has(p.code)) {
+      productsMap.set(p.code, { code: p.code, name: p.name, yomi: p.yomi || "" });
+    }
+  }
+  let prev = {};
+  try { prev = JSON.parse(localStorage.getItem(BRIDGE_V14_KEY) || "{}"); } catch {}
+  return {
+    clients,
+    cycles: prev.cycles || {},
+    products: [...productsMap.values()],
+    groups,
+    clientGroups,
+    clientOrder: prev.clientOrder || {},
+    closing: prev.closing || {},
+    minCharge: prev.minCharge || {},
+    deliveryFee: prev.deliveryFee || {},
+    packagingFee: prev.packagingFee || {},
+    parkingEnabled: prev.parkingEnabled || {},
+    slipCheckedThrough: prev.slipCheckedThrough || "",
+    slipCheckedThroughByClosing: prev.slipCheckedThroughByClosing || {},
+    slipCheckedAtByClosing: prev.slipCheckedAtByClosing || {},
+    slipIssuedAckIds: prev.slipIssuedAckIds || {}
+  };
+}
+
+function applySlipV14ToLedger(d) {
+  if (!d || !d.clients) return false;
+  const groupIdToName = {};
+  (d.groups || []).forEach(g => { if (g && g.id) groupIdToName[g.id] = g.name || g.id; });
+  const customers = [];
+  const prices = [];
+  let i = 0;
+  for (const [name, cl] of Object.entries(d.clients)) {
+    i += 1;
+    const gid = (d.clientGroups || {})[name];
+    const group = gid ? (groupIdToName[gid] || "") : "";
+    customers.push({ id: String(i).padStart(3, "0"), name, group });
+    for (const it of (cl.items || [])) {
+      prices.push({
+        customer: name,
+        code: it.code || "",
+        name: it.name || "",
+        yomi: it.yomi || ""
+      });
+    }
+  }
+  state.customers = customers.map(normalizeCustomer).filter(c => c.name);
+  state.prices = normalizeMasterItems(prices);
+  state.groupOrder = normalizeGroupOrder((d.groups || []).map(g => g.name));
+  syncGroupOrderFromCustomers();
+  return true;
+}
+
+function pushMastersToSlipBridge() {
+  if (!IS_DEMO) return;
+  try {
+    localStorage.setItem(BRIDGE_V14_KEY, JSON.stringify(slipV14FromLedger()));
+    localStorage.setItem(BRIDGE_REV_KEY, String(Date.now()));
+  } catch (e) { console.warn(e); }
+}
+
+function pullMastersFromSlipBridge() {
+  if (!IS_DEMO) return false;
+  try {
+    const raw = localStorage.getItem(BRIDGE_V14_KEY);
+    if (!raw) return false;
+    const d = JSON.parse(raw);
+    if (!d.clients || !Object.keys(d.clients).length) return "empty";
+    applySlipV14ToLedger(d);
+    cacheLedgerMaster();
+    return true;
+  } catch (e) {
+    console.warn(e);
+    return false;
+  }
+}
+
+function issueToSlipDemo() {
+  if (!IS_DEMO) {
+    toast("伝票発行は準備中です。当面は「伝票入力メモ」から転記してください");
+    return;
+  }
+  applyBuffer();
+  if (!state.customer) { toast("客先を選択してください", "error"); return; }
+  const items = state.items
+    .filter(it => Number(it.outQty) > 0)
+    .map(it => ({ code: it.code, name: it.name, qty: Number(it.outQty) }));
+  if (!items.length) { toast("「出」の数量を入力してください", "error"); return; }
+  pushMastersToSlipBridge();
+  try {
+    localStorage.setItem(BRIDGE_ISSUE_KEY, JSON.stringify({
+      client: state.customer,
+      deliveryDate: state.deliveryDate || todayInput(),
+      items,
+      at: new Date().toISOString()
+    }));
+  } catch (e) {
+    toast("伝票への受け渡しに失敗しました", "error");
+    return;
+  }
+  window.open(SLIP_DEMO_URL, "_blank");
+  toast("伝票デモを開きました（ログイン: demo1234）");
 }
 
 const ZOOM_KEY = "lg_itemZoom";
@@ -1175,6 +1308,21 @@ function fillDemoYomiIfMissing() {
 
 async function loadLedgerMaster() {
   if (state.demoMode) {
+    if (IS_DEMO) {
+      const pulled = pullMastersFromSlipBridge();
+      if (pulled !== true) {
+        if (!loadLedgerMasterFromCache()) {
+          state.customers = [];
+          state.prices = [];
+          state.groupOrder = [];
+        }
+      }
+      fillDemoYomiIfMissing();
+      state.prices = normalizeMasterItems(state.prices);
+      syncGroupOrderFromCustomers();
+      pushMastersToSlipBridge();
+      return;
+    }
     if (!loadLedgerMasterFromCache()) {
       state.customers = DEMO_CUSTOMERS.map(c => ({ ...c }));
       state.prices = DEMO_PRICES.map(p => ({ ...p }));
@@ -1207,6 +1355,10 @@ async function persistLedgerMaster() {
   state.prices = normalizeMasterItems(state.prices);
   syncGroupOrderFromCustomers();
   cacheLedgerMaster();
+  if (IS_DEMO) {
+    pushMastersToSlipBridge();
+    return;
+  }
   if (state.demoMode) return;
   await Promise.all([
     fsSaveLedger("customers", state.customers),
@@ -2268,7 +2420,7 @@ function render() {
 
   document.getElementById("root").innerHTML = `
     <div class="app">
-      ${IS_DEMO ? `<div class="demo-banner">⚠ お試し（デモ）環境です。データは本番と別です。自由に触って大丈夫です。</div>` : ""}
+      ${IS_DEMO ? `<div class="demo-banner">⚠ お試し（デモ）環境です。伝票デモとマスタ連動中・この端末のみ。</div>` : ""}
       <header class="header">
         <div class="header-brand"><h1>${IS_DEMO ? "【デモ】入出荷台帳" : "入出荷台帳"}</h1><div class="header-sub">${esc(sessionLabel())}</div></div>
         <nav class="header-tabs" aria-label="画面切替">
@@ -2299,8 +2451,8 @@ function render() {
         <aside class="numpad-wrap${showNumpad ? "" : " hidden"}${state.focus ? "" : " disabled"}" aria-label="テンキー">
           <div class="sidebar-actions">
             <button class="btn btn-primary" id="btn-save">完了して保存</button>
-            <button type="button" class="btn btn-issue" id="btn-issue" title="伝票アプリとの連動は準備中です">
-              伝票を発行<span class="soon">準備中</span>
+            <button type="button" class="btn btn-issue" id="btn-issue" title="${IS_DEMO ? "伝票デモへ「出」数量を渡します" : "伝票アプリとの連動は準備中です"}">
+              伝票を発行${IS_DEMO ? "" : `<span class="soon">準備中</span>`}
             </button>
             <button class="btn btn-memo" id="btn-memo">伝票入力メモ</button>
           </div>
@@ -2460,9 +2612,7 @@ function render() {
   const memoBtn = document.getElementById("btn-memo");
   if (saveBtn) saveBtn.onclick = saveLedger;
   if (issueBtn) {
-    issueBtn.onclick = () => {
-      toast("伝票発行は準備中です。当面は「伝票入力メモ」から転記してください");
-    };
+    issueBtn.onclick = issueToSlipDemo;
   }
   if (memoBtn) memoBtn.onclick = showMemoFromForm;
 
@@ -2690,6 +2840,20 @@ async function startApp() {
       return;
     }
     renderLogin("接続エラーです。ネットワークを確認して再試行してください。");
+  });
+}
+
+if (IS_DEMO) {
+  window.addEventListener("storage", e => {
+    if (e.key !== BRIDGE_V14_KEY && e.key !== BRIDGE_REV_KEY) return;
+    const pulled = pullMastersFromSlipBridge();
+    if (pulled !== true) return;
+    if (state.customer) loadCustomerItems(state.customer);
+    if (state.masterCustomer) {
+      /* keep */
+    }
+    render();
+    toast("伝票デモのマスタを反映しました");
   });
 }
 
