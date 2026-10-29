@@ -72,7 +72,9 @@ select,input[type=date],input[type=text]{width:100%;padding:10px 12px;border:1px
 #master-item-kana,#item-add-kana,#master-form-search-kana{background:#fff6e0;border-color:#e0c98a;color:#5a4a20}
 #master-item-query,#item-add-query,#master-form-search-query,#item-add-name,#item-add-yomi{background:#eef8f1;border-color:#9ecbb0;color:#1a3a28}
 #master-form-name,#master-form-yomi,#master-form-code,#master-form-group{background:#f7fafc;border-color:#9fc4de}
-.meta-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.meta-row{display:grid;grid-template-columns:1.4fr 1fr 0.7fr;gap:10px}
+@media (max-width:900px){.meta-row{grid-template-columns:1fr 1fr}}
+#lot-select{background:#fff8e8;border-color:#e0c070;color:#5a4010;font-weight:700}
 .item-list{display:flex;flex-direction:column;gap:0}
 .items-panel{display:flex;flex-direction:column;flex:1;min-height:0;gap:3px;--iz:1}
 .item-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:calc(10px * var(--iz));width:100%;box-sizing:border-box;background:#fff;border-bottom:1px solid #eceae4;padding:calc(2px * var(--iz)) calc(5px * var(--iz));border-radius:0}
@@ -255,7 +257,34 @@ const LEDGERS_KEY_DEMO = `lg_ledgers_${DEMO_STORE}`;
 const BRIDGE_V14_KEY = "purims_demo_v14";
 const BRIDGE_REV_KEY = "purims_demo_bridge_rev";
 const BRIDGE_ISSUE_KEY = "purims_demo_issue_pending";
+const LOT_KEY = "lg_current_lot";
 const SLIP_DEMO_URL = "https://pv-dn.github.io/primus-demo/?from=ledger";
+const LOT_OPTIONS = ["1","2","3","4","5","6","7","8","9","10"];
+
+function loadLotNo() {
+  try {
+    const v = String(localStorage.getItem(LOT_KEY) || "").trim();
+    return LOT_OPTIONS.includes(v) ? v : "";
+  } catch { return ""; }
+}
+function saveLotNo(v) {
+  const n = String(v || "").trim();
+  state.lotNo = LOT_OPTIONS.includes(n) ? n : "";
+  try {
+    if (state.lotNo) localStorage.setItem(LOT_KEY, state.lotNo);
+    else localStorage.removeItem(LOT_KEY);
+  } catch {}
+}
+/** 客先変更・保存後も、ロットは明示切替まで維持する */
+function ensureLotPersists() {
+  if (state.lotNo && LOT_OPTIONS.includes(state.lotNo)) {
+    try { localStorage.setItem(LOT_KEY, state.lotNo); } catch {}
+    return state.lotNo;
+  }
+  const loaded = loadLotNo();
+  if (loaded) state.lotNo = loaded;
+  return state.lotNo;
+}
 if (IS_DEMO) {
   document.title = "【デモ】入出荷台帳";
 }
@@ -749,6 +778,7 @@ function issueToSlipDemo() {
   }
   applyBuffer();
   if (!state.customer) { toast("客先を選択してください", "error"); return; }
+  if (!state.lotNo) { toast("ロット番号を選んでください", "error"); return; }
   const items = state.items
     .filter(it => Number(it.outQty) > 0)
     .map(it => ({ code: it.code, name: it.name, qty: Number(it.outQty) }));
@@ -758,6 +788,7 @@ function issueToSlipDemo() {
     localStorage.setItem(BRIDGE_ISSUE_KEY, JSON.stringify({
       client: state.customer,
       deliveryDate: state.deliveryDate || todayInput(),
+      lotNo: state.lotNo,
       items,
       at: new Date().toISOString()
     }));
@@ -924,6 +955,7 @@ const state = {
   ledgers: [],
   customer: "",
   deliveryDate: "",
+  lotNo: loadLotNo(),
   items: [],
   focus: null,
   buffer: "",
@@ -1606,6 +1638,7 @@ function selectCustomer(name) {
   state.focus = null;
   state.buffer = "";
   state.itemAddOpen = false;
+  ensureLotPersists(); // 客先を変えてもロットは維持
   if (!name) {
     state.customer = "";
     state.items = [];
@@ -1894,6 +1927,7 @@ function buildLedgerRecord() {
     id: Date.now(),
     customer: state.customer,
     deliveryDate: state.deliveryDate || todayInput(),
+    lotNo: state.lotNo || "",
     items: state.items.map(it => ({
       code: it.code,
       name: it.name,
@@ -1913,6 +1947,7 @@ function hasAnyQty(record) {
 async function saveLedger() {
   applyBuffer();
   if (!state.customer) { toast("客先を選択してください", "error"); return; }
+  if (!state.lotNo) { toast("ロット番号を選んでください", "error"); return; }
   const record = buildLedgerRecord();
   if (!hasAnyQty(record)) { toast("数量を入力してください", "error"); return; }
   state.ledgers = applyLedgerRetention([record, ...state.ledgers]);
@@ -1931,6 +1966,7 @@ async function saveLedger() {
     state.items = state.items.map(it => ({ ...it, inQty: "", outQty: "" }));
     state.focus = null;
     state.buffer = "";
+    ensureLotPersists(); // 保存後も同じロットで続行
     render();
     return record;
   } catch (e) {
@@ -2056,7 +2092,13 @@ function renderInputTab() {
             <select id="cust-select"><option value="">-- 選択 --</option>${custOpts}</select></div>
           <div><label class="lbl">納品日</label>
             <input type="date" id="delivery-date" value="${state.deliveryDate || todayInput()}"></div>
+          <div><label class="lbl">ロット番号${state.lotNo ? `（${esc(state.lotNo)}で継続中）` : ""}</label>
+            <select id="lot-select">
+              <option value="">-- 選択 --</option>
+              ${LOT_OPTIONS.map(n => `<option value="${n}"${state.lotNo === n ? " selected" : ""}>${n}</option>`).join("")}
+            </select></div>
         </div>
+        <p class="sync-note" style="margin-top:6px">※ロットは<strong>切り替えるまで同じ番号のまま</strong>続きます（客先を変えても維持）。荷造り照合用に伝票へ載ります。</p>
         <button type="button" class="item-add-btn" id="btn-item-add" ${state.customer ? "" : "disabled"}>＋ 品目を追加（自由入力 / マスタ検索）</button>
         <p class="sync-note">${state.demoMode
           ? (IS_DEMO ? "お試しデモ：この端末のマスタ・履歴のみ（本番と別）"
@@ -2422,7 +2464,7 @@ function render() {
     <div class="app">
       ${IS_DEMO ? `<div class="demo-banner">⚠ お試し（デモ）環境です。伝票デモとマスタ連動中・この端末のみ。</div>` : ""}
       <header class="header">
-        <div class="header-brand"><h1>${IS_DEMO ? "【デモ】入出荷台帳" : "入出荷台帳"}</h1><div class="header-sub">${esc(sessionLabel())}</div></div>
+        <div class="header-brand"><h1>${IS_DEMO ? "【デモ】入出荷台帳" : "入出荷台帳"}</h1><div class="header-sub">${esc(sessionLabel())}${state.lotNo ? ` · ロット ${esc(state.lotNo)}` : " · ロット未選択"}</div></div>
         <nav class="header-tabs" aria-label="画面切替">
           <button type="button" class="header-tab${state.tab === 0 ? " active" : ""}" data-tab="0">入力</button>
           <button type="button" class="header-tab${state.tab === 1 ? " active" : ""}" data-tab="1">履歴${state.ledgers.length ? ` (${state.ledgers.length})` : ""}</button>
@@ -2515,6 +2557,23 @@ function render() {
     const dt = document.getElementById("delivery-date");
     if (dt) dt.onchange = e => { state.deliveryDate = e.target.value; };
     if (!state.deliveryDate) state.deliveryDate = dt?.value || todayInput();
+    ensureLotPersists();
+    const lotSel = document.getElementById("lot-select");
+    if (lotSel) {
+      if (state.lotNo && lotSel.value !== state.lotNo) lotSel.value = state.lotNo;
+      lotSel.onchange = e => {
+        const next = String(e.target.value || "").trim();
+        if (!next && state.lotNo) {
+          if (!confirm(`ロット ${state.lotNo} の継続をやめますか？`)) {
+            lotSel.value = state.lotNo;
+            return;
+          }
+        }
+        saveLotNo(next);
+        toast(state.lotNo ? `ロット ${state.lotNo} で進めます（切替まで継続）` : "ロット未選択");
+        render();
+      };
+    };
 
     document.querySelectorAll(".qty-cell").forEach(el => {
       el.onclick = () => setFocus(+el.dataset.i, el.dataset.f);
