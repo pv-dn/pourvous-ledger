@@ -77,7 +77,7 @@ select,input[type=date],input[type=text]{width:100%;padding:10px 12px;border:1px
 #lot-select{background:#fff8e8;border-color:#e0c070;color:#5a4010;font-weight:700}
 .item-list{display:flex;flex-direction:column;gap:0}
 .items-panel{display:flex;flex-direction:column;flex:1;min-height:0;gap:3px;--iz:1}
-.item-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:calc(10px * var(--iz));width:100%;box-sizing:border-box;background:#fff;border-bottom:1px solid #eceae4;padding:calc(2px * var(--iz)) calc(5px * var(--iz));border-radius:0}
+.item-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:calc(10px * var(--iz));width:100%;box-sizing:border-box;background:#fff;border-bottom:1px solid #eceae4;padding:calc(2px * var(--iz)) calc(5px * var(--iz));border-radius:0}
 .item-row:first-of-type{border-top:1px solid #eceae4}
 .item-row.active{background:#faf9f7;border-bottom-color:#1a1a2e}
 .item-main{display:flex;align-items:baseline;gap:calc(6px * var(--iz));min-width:0;overflow:hidden}
@@ -779,7 +779,7 @@ function issueToSlip() {
   const items = state.items
     .filter(it => Number(it.outQty) > 0)
     .map(it => ({ code: it.code, name: it.name, qty: Number(it.outQty) }));
-  if (!items.length) { toast("「出」の数量を入力してください", "error"); return; }
+  if (!items.length) { toast("数量を入力してください", "error"); return; }
   // デモのみ全マスタを橋渡し。本番は発行データ＋不足品目の取り込みだけで十分
   if (IS_DEMO) pushMastersToSlipBridge();
   try {
@@ -1842,38 +1842,37 @@ function removeInputItem(index) {
 }
 
 function setFocus(index, field) {
-  if (state.focus && (state.focus.index !== index || state.focus.field !== field)) {
+  const f = field === "in" ? "out" : (field || "out");
+  if (state.focus && (state.focus.index !== index || state.focus.field !== f)) {
     applyBuffer();
   }
-  state.focus = { index, field };
+  state.focus = { index, field: f };
   const item = state.items[index];
-  state.buffer = String(field === "in" ? item.inQty : item.outQty || "");
+  state.buffer = String(item.outQty || "");
   render();
 }
 
 function applyBuffer() {
   if (!state.focus) return;
-  const { index, field } = state.focus;
+  const { index } = state.focus;
   const val = state.buffer === "" ? "" : String(parseInt(state.buffer, 10) || 0);
-  if (field === "in") state.items[index].inQty = val;
-  else state.items[index].outQty = val;
+  state.items[index].outQty = val;
+  state.items[index].inQty = "";
 }
 
 function numpadPress(key) {
   if (!state.focus) {
-    if (key !== "enter") toast("入または出をタップしてください", "error");
+    if (key !== "enter") toast("数量をタップしてください", "error");
     return;
   }
   if (key === "del") {
     state.buffer = state.buffer.slice(0, -1);
   } else if (key === "enter") {
     applyBuffer();
-    const { index, field } = state.focus;
+    const { index } = state.focus;
     if (index + 1 < state.items.length) {
-      state.focus = { index: index + 1, field };
-      state.buffer = String(
-        field === "in" ? state.items[index + 1].inQty : state.items[index + 1].outQty || ""
-      );
+      state.focus = { index: index + 1, field: "out" };
+      state.buffer = String(state.items[index + 1].outQty || "");
     } else {
       state.focus = null;
       state.buffer = "";
@@ -1944,7 +1943,7 @@ function buildLedgerRecord() {
 }
 
 function hasAnyQty(record) {
-  return record.items.some(it => it.inQty > 0 || it.outQty > 0);
+  return record.items.some(it => (it.outQty > 0) || (it.inQty > 0));
 }
 
 async function saveLedger() {
@@ -1983,7 +1982,7 @@ async function saveLedger() {
 function showInvoiceMemo(record) {
   const outItems = (record.items || []).filter(it => it.outQty > 0);
   if (outItems.length === 0) {
-    toast("「出」の数量がありません", "error");
+    toast("数量がありません", "error");
     return;
   }
   state.invoiceMemo = record;
@@ -2008,8 +2007,8 @@ function renderInvoiceMemo(ledger) {
       <div class="detail-panel">
         <h2>伝票入力メモ</h2>
         <p style="font-size:13px;color:#666;margin-bottom:8px">${esc(ledger.customer)} · 納品日 ${fmtDate(ledger.deliveryDate)}</p>
-        <div class="memo-note">伝票アプリは今までどおり別途開いて入力してください。この画面の「出」の数量を見ながら、伝票発行画面へ転記します。</div>
-        <table class="memo-table"><thead><tr><th>品名</th><th style="text-align:right">出</th></tr></thead><tbody>${rows}</tbody></table>
+        <div class="memo-note">伝票アプリは今までどおり別途開いて入力してください。この画面の数量を見ながら、伝票発行画面へ転記します。</div>
+        <table class="memo-table"><thead><tr><th>品名</th><th style="text-align:right">数量</th></tr></thead><tbody>${rows}</tbody></table>
         <div class="memo-actions">
           <button class="btn btn-ghost" id="memo-close" style="background:#f4f3ef;color:#1a1a2e">閉じる</button>
         </div>
@@ -2050,28 +2049,18 @@ function renderLogin(notice) {
 }
 
 function renderItemRow(it, i) {
-  const inActive = state.focus?.index === i && state.focus.field === "in";
   const outActive = state.focus?.index === i && state.focus.field === "out";
-  const inDisp = inActive ? (state.buffer || "0") : (it.inQty !== "" ? it.inQty : "—");
   const outDisp = outActive ? (state.buffer || "0") : (it.outQty !== "" ? it.outQty : "—");
-  const inNum = inActive
-    ? (state.buffer === "" ? null : (parseInt(state.buffer, 10) || 0))
-    : (it.inQty === "" ? null : (parseInt(it.inQty, 10) || 0));
-  const outNum = outActive
-    ? (state.buffer === "" ? null : (parseInt(state.buffer, 10) || 0))
-    : (it.outQty === "" ? null : (parseInt(it.outQty, 10) || 0));
-  const outMismatch = inNum !== null && outNum !== null && inNum !== outNum;
-  return `<div class="item-row${inActive || outActive ? " active" : ""}">
+  return `<div class="item-row${outActive ? " active" : ""}">
     <div class="item-main"><span class="item-name">${esc(it.name)}</span>${it.adhoc ? `<span class="item-badge">臨時</span>` : ""}${it.code ? `<span class="item-code">${esc(it.code)}</span>` : ""}${it.adhoc ? `<button type="button" class="item-row-remove" data-remove-item="${i}" aria-label="臨時品目を削除">×</button>` : ""}</div>
-    <div class="qty-cell in-col${inActive ? " active-in" : ""}${it.inQty === "" && !inActive ? " empty" : ""}" data-i="${i}" data-f="in">${esc(String(inDisp))}</div>
-    <div class="qty-cell out-col${outActive ? " active-out" : ""}${it.outQty === "" && !outActive ? " empty" : ""}${outMismatch ? " mismatch" : ""}" data-i="${i}" data-f="out">${esc(String(outDisp))}</div>
+    <div class="qty-cell out-col${outActive ? " active-out" : ""}${it.outQty === "" && !outActive ? " empty" : ""}" data-i="${i}" data-f="out">${esc(String(outDisp))}</div>
   </div>`;
 }
 
 function renderInputTab() {
   const custOpts = renderCustomerSelectOptions(state.customer);
   const layout = itemLayoutMeta();
-  const headUnit = `<div class="list-head-unit"><span>品名</span><span>入</span><span>出</span></div>`;
+  const headUnit = `<div class="list-head-unit"><span>品名</span><span>数量</span></div>`;
 
   let body = "";
   if (state.items.length === 0) {
@@ -2191,14 +2180,12 @@ function renderHistoryTab() {
     <button class="btn btn-ghost" id="btn-refresh-history" style="background:#fff;border:1px solid #ddd;color:#333;padding:6px 12px;font-size:12px;flex-shrink:0">↻ 更新</button>
   </div>
   <table class="history-table">
-    <thead><tr><th>納品日</th><th>客先</th><th class="num">入</th><th class="num">出</th></tr></thead>
+    <thead><tr><th>納品日</th><th>客先</th><th class="num">数量</th></tr></thead>
     <tbody>${list.map(l => {
       const outSum = l.items.reduce((s, it) => s + (it.outQty || 0), 0);
-      const inSum = l.items.reduce((s, it) => s + (it.inQty || 0), 0);
       return `<tr class="history-row" data-id="${l.id}">
         <td class="col-date">${fmtDate(l.deliveryDate)}</td>
         <td class="col-customer">${esc(l.customer)}</td>
-        <td class="num">${inSum || "—"}</td>
         <td class="num">${outSum || "—"}</td>
       </tr>`;
     }).join("")}</tbody>
@@ -2431,15 +2418,15 @@ function renderMasterForm() {
 
 function renderDetail(ledger) {
   const rows = ledger.items
-    .filter(it => it.inQty > 0 || it.outQty > 0)
-    .map(it => `<tr><td>${esc(it.name)}</td><td class="num">${it.inQty || "—"}</td><td class="num">${it.outQty || "—"}</td></tr>`)
+    .filter(it => it.outQty > 0 || it.inQty > 0)
+    .map(it => `<tr><td>${esc(it.name)}</td><td class="num">${it.outQty || it.inQty || "—"}</td></tr>`)
     .join("");
   return `
     <div class="detail-overlay" id="detail-overlay">
       <div class="detail-panel">
         <h2>${esc(ledger.customer)}</h2>
         <p style="font-size:13px;color:#666">${fmtDate(ledger.deliveryDate)} · 保存 ${fmtDate(ledger.createdAt)} ${fmtTime(ledger.createdAt)}</p>
-        <table class="detail-table"><thead><tr><th>品名</th><th>入</th><th>出</th></tr></thead><tbody>${rows}</tbody></table>
+        <table class="detail-table"><thead><tr><th>品名</th><th>数量</th></tr></thead><tbody>${rows}</tbody></table>
         <div class="memo-actions">
           <button class="btn btn-ghost" id="detail-memo" style="background:#f0ebff;color:#5b4b8a">伝票入力メモ</button>
           <button class="btn btn-primary" id="detail-close">閉じる</button>
@@ -2457,11 +2444,11 @@ function render() {
   applyDeviceLayout();
   const showNumpad = state.tab === 0;
   const focusLabel = state.focus
-    ? `${state.items[state.focus.index]?.name || ""} の「${state.focus.field === "in" ? "入" : "出"}」`
+    ? `${state.items[state.focus.index]?.name || ""} の数量`
     : "";
   const numpadHint = focusLabel
     ? `入力中：<strong>${esc(focusLabel)}</strong>`
-    : "入または出をタップしてください";
+    : "数量をタップしてください";
 
   document.getElementById("root").innerHTML = `
     <div class="app">
@@ -2496,7 +2483,7 @@ function render() {
         <aside class="numpad-wrap${showNumpad ? "" : " hidden"}${state.focus ? "" : " disabled"}" aria-label="テンキー">
           <div class="sidebar-actions">
             <button class="btn btn-primary" id="btn-save">完了して保存</button>
-            <button type="button" class="btn btn-issue" id="btn-issue" title="${IS_DEMO ? "伝票デモへ「出」数量を渡します" : "伝票アプリへ「出」数量とロットを渡します"}">
+            <button type="button" class="btn btn-issue" id="btn-issue" title="${IS_DEMO ? "伝票デモへ数量を渡します" : "伝票アプリへ数量とロットを渡します"}">
               伝票を発行
             </button>
             <button class="btn btn-memo" id="btn-memo">伝票入力メモ</button>
