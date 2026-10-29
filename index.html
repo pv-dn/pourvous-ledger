@@ -253,12 +253,13 @@ const MASTER_CUST_KEY_DEMO = `lg_master_customers_${DEMO_STORE}`;
 const MASTER_ITEMS_KEY_DEMO = `lg_master_items_${DEMO_STORE}`;
 const MASTER_GROUP_KEY_DEMO = `lg_master_groups_${DEMO_STORE}`;
 const LEDGERS_KEY_DEMO = `lg_ledgers_${DEMO_STORE}`;
-/** 伝票デモと共有（同一オリジン localStorage） */
-const BRIDGE_V14_KEY = "purims_demo_v14";
-const BRIDGE_REV_KEY = "purims_demo_bridge_rev";
-const BRIDGE_ISSUE_KEY = "purims_demo_issue_pending";
+/** 伝票アプリと共有（同一オリジン localStorage）。デモ／本番でキー分離 */
+const BRIDGE_V14_KEY = IS_DEMO ? "purims_demo_v14" : "purims_v14";
+const BRIDGE_REV_KEY = IS_DEMO ? "purims_demo_bridge_rev" : "purims_bridge_rev";
+const BRIDGE_ISSUE_KEY = IS_DEMO ? "purims_demo_issue_pending" : "purims_issue_pending";
 const LOT_KEY = "lg_current_lot";
 const SLIP_DEMO_URL = "https://pv-dn.github.io/primus-demo/?from=ledger";
+const SLIP_PROD_URL = "https://pv-dn.github.io/purims/?from=ledger";
 const LOT_OPTIONS = ["1","2","3","4","5","6","7","8","9","10"];
 
 function loadLotNo() {
@@ -771,11 +772,7 @@ function pullMastersFromSlipBridge() {
   }
 }
 
-function issueToSlipDemo() {
-  if (!IS_DEMO) {
-    toast("伝票発行は準備中です。当面は「伝票入力メモ」から転記してください");
-    return;
-  }
+function issueToSlip() {
   applyBuffer();
   if (!state.customer) { toast("客先を選択してください", "error"); return; }
   if (!state.lotNo) { toast("ロット番号を選んでください", "error"); return; }
@@ -783,7 +780,8 @@ function issueToSlipDemo() {
     .filter(it => Number(it.outQty) > 0)
     .map(it => ({ code: it.code, name: it.name, qty: Number(it.outQty) }));
   if (!items.length) { toast("「出」の数量を入力してください", "error"); return; }
-  pushMastersToSlipBridge();
+  // デモのみ全マスタを橋渡し。本番は発行データ＋不足品目の取り込みだけで十分
+  if (IS_DEMO) pushMastersToSlipBridge();
   try {
     localStorage.setItem(BRIDGE_ISSUE_KEY, JSON.stringify({
       client: state.customer,
@@ -796,9 +794,14 @@ function issueToSlipDemo() {
     toast("伝票への受け渡しに失敗しました", "error");
     return;
   }
-  window.open(SLIP_DEMO_URL, "_blank");
-  toast("伝票デモを開きました（ログイン: demo1234）");
+  const url = IS_DEMO ? SLIP_DEMO_URL : SLIP_PROD_URL;
+  window.open(url, "_blank");
+  toast(IS_DEMO
+    ? "伝票デモを開きました（ログイン: demo1234）"
+    : "伝票アプリを開きました。ログイン後に数量・ロットが入ります");
 }
+/** @deprecated 旧名互換 */
+function issueToSlipDemo() { return issueToSlip(); }
 
 const ZOOM_KEY = "lg_itemZoom";
 const ZOOM_MIN = 0.7;
@@ -2493,8 +2496,8 @@ function render() {
         <aside class="numpad-wrap${showNumpad ? "" : " hidden"}${state.focus ? "" : " disabled"}" aria-label="テンキー">
           <div class="sidebar-actions">
             <button class="btn btn-primary" id="btn-save">完了して保存</button>
-            <button type="button" class="btn btn-issue" id="btn-issue" title="${IS_DEMO ? "伝票デモへ「出」数量を渡します" : "伝票アプリとの連動は準備中です"}">
-              伝票を発行${IS_DEMO ? "" : `<span class="soon">準備中</span>`}
+            <button type="button" class="btn btn-issue" id="btn-issue" title="${IS_DEMO ? "伝票デモへ「出」数量を渡します" : "伝票アプリへ「出」数量とロットを渡します"}">
+              伝票を発行
             </button>
             <button class="btn btn-memo" id="btn-memo">伝票入力メモ</button>
           </div>
@@ -2671,7 +2674,7 @@ function render() {
   const memoBtn = document.getElementById("btn-memo");
   if (saveBtn) saveBtn.onclick = saveLedger;
   if (issueBtn) {
-    issueBtn.onclick = issueToSlipDemo;
+    issueBtn.onclick = issueToSlip;
   }
   if (memoBtn) memoBtn.onclick = showMemoFromForm;
 
